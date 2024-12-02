@@ -29,6 +29,8 @@
   "type": "module",
   "dependencies": {
     "@commander-js/extra-typings": "^12.1.0",
-    "commander": "^12.1.0"
+    "@iarna/toml": "^2.2.5",
+    "commander": "^12.1.0",
+    "deepmerge-ts": "^7.1.3"
   }
 }
