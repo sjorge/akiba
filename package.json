@@ -1,0 +1,29 @@
+{
+  "name": "akiba",
+  "version": "1.0.0",
+  "author": "sjorge",
+  "module": "src/cli.ts",
+  "devDependencies": {
+    "@eslint/core": "^0.9.0",
+    "@eslint/js": "^9.16.0",
+    "@types/bun": "latest",
+    "@types/eslint-config-prettier": "^6.11.3",
+    "eslint": "^9.16.0",
+    "eslint-config-prettier": "^9.1.0",
+    "typescript-eslint": "^8.16.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "description": "Utility to export stub-NFO's for use with jellyfin.",
+  "license": "MIT",
+  "scripts": {
+    "start": "bun run src/cli.ts",
+    "compile": "mkdir -p bin/ ; bun build src/cli.ts --compile --outfile bin/akiba",
+    "lint": "bun x --bun eslint --max-warnings=0",
+    "check": "bun x --bun tsc --noEmit --pretty",
+    "pretty:check": "bun x --bun prettier --check src/",
+    "pretty:write": "bun x --bun prettier --write src/"
+  },
+  "type": "module"
+}
