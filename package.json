@@ -8,12 +8,13 @@
     "@eslint/js": "^9.16.0",
     "@types/bun": "latest",
     "@types/eslint-config-prettier": "^6.11.3",
+    "@types/node": "^22.10.1",
     "eslint": "^9.16.0",
     "eslint-config-prettier": "^9.1.0",
     "typescript-eslint": "^8.16.0"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.7.2"
   },
   "description": "Utility to export stub-NFO's for use with jellyfin.",
   "license": "MIT",
@@ -25,5 +26,9 @@
     "pretty:check": "bun x --bun prettier --check src/",
     "pretty:write": "bun x --bun prettier --write src/"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@commander-js/extra-typings": "^12.1.0",
+    "commander": "^12.1.0"
+  }
 }
