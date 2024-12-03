@@ -1,48 +1,62 @@
 import { _DEFINE_PROG, _DEFINE_VER } from "vars";
 import tty from "node:tty";
 import process from "node:process";
+import type { AnimeId } from "lib/anime";
 
 let printBanner = true;
+
+function idSection(id?: AnimeId): string {
+  const useColor: boolean = tty.isatty(process.stdout.fd);
+  const anidb = id?.anidb ? (useColor ? "\x1b[31m#\x1b[0m" : "#") : " ";
+  const anilist = id?.anilist ? (useColor ? "\x1b[34m#\x1b[0m" : "#") : " ";
+  const tmdb = id?.tmdb ? (useColor ? "\x1b[36m#\x1b[0m" : "#") : " ";
+  return id === undefined
+    ? "{   |      } "
+    : `{${anidb}${anilist}${tmdb}|${id.anidb.toString().padStart(6)}} `;
+}
 
 export function log(
   msg: string,
   type: "error" | "warn" | "step" | "done" | "info" = "info",
+  showAnimeIds: boolean = false,
+  anime?: AnimeId,
 ): void {
   const useColor: boolean = tty.isatty(process.stdout.fd);
+  const ids = showAnimeIds ? idSection(anime) : "";
   switch (type) {
     case "error":
       if (useColor) {
-        process.stderr.write(`\x1b[2K\r[\x1b[31m!!\x1b[0m] ${msg}\n`);
+        process.stderr.write(`\x1b[2K\r[\x1b[31m!!\x1b[0m] ${ids}${msg}\n`);
       } else {
-        process.stdout.write(`[!!] ${msg}\n`);
+        process.stdout.write(`[!!] ${ids}${msg}\n`);
       }
       break;
     case "warn":
       if (useColor) {
-        process.stdout.write(`\x1b[2K\r[\x1b[33mWW\x1b[0m] ${msg}\n`);
+        process.stdout.write(`\x1b[2K\r[\x1b[33mWW\x1b[0m] ${ids}${msg}\n`);
       } else {
-        process.stdout.write(`[WW] ${msg}\n`);
+        process.stdout.write(`[WW] ${ids}${msg}\n`);
       }
       break;
     case "info":
       if (useColor) {
-        process.stdout.write(`\x1b[2K\r[\x1b[34mII\x1b[0m] ${msg}\n`);
+        process.stdout.write(`\x1b[2K\r[\x1b[34mII\x1b[0m] ${ids}${msg}\n`);
       } else {
-        process.stdout.write(`[II] ${msg}\n`);
+        process.stdout.write(`[II] ${ids}${msg}\n`);
       }
       break;
     case "done":
       if (useColor) {
-        process.stdout.write(`\x1b[2K\r[\x1b[32mOK\x1b[0m] ${msg}\n`);
+        process.stdout.write(`\x1b[2K\r[\x1b[32mOK\x1b[0m] ${ids}${msg}\n`);
       } else {
-        process.stdout.write(`[OK] ${msg}\n`);
+        process.stdout.write(`[OK] ${ids}${msg}\n`);
       }
       break;
     case "step":
       if (useColor) {
-        process.stdout.write(`\x1b[2K\r[\x1b[33m>>\x1b[0m] ${msg}`);
+        process.stdout.write(`\x1b[2K\r[\x1b[33m>>\x1b[0m] ${ids}${msg}`);
       } else {
-        process.stdout.write(`[>>] ${msg}\n`);
+        process.stdout.write(`[>>] ${ids}${msg}\n`);
       }
       break;
   }
