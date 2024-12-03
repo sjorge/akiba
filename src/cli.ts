@@ -2,6 +2,7 @@ import { _DEFINE_PROG, _DEFINE_VER } from "vars";
 import { program } from "@commander-js/extra-typings";
 import { addConfigureCommand } from "cmd/configure";
 import { addNfoCommand } from "cmd/nfo";
+import { addMappingCommand } from "cmd/mapping";
 
 program
   .name(_DEFINE_PROG)
@@ -10,6 +11,7 @@ program
 
 addConfigureCommand(program);
 addNfoCommand(program);
+addMappingCommand(program);
 
 program.parse(process.argv);
 
