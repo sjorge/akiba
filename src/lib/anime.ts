@@ -18,12 +18,4 @@ export type AnimeTitleVariant = {
   language: string;
 };
 
-export type LocalMapping = {
-  [anidb: number]: {
-    anilist?: number;
-    tmdb?: number;
-    tmdbSeason?: number;
-  };
-};
-
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
