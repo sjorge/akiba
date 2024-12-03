@@ -12,6 +12,7 @@ import type { TvShow, Episode, UniqueId } from "lib/nfo";
 import type { AnimeId } from "lib/anime";
 import { readConfig, validateConfig } from "lib/config";
 import { TvShowNfo, EpisodeNfo } from "lib/nfo";
+import { AnimeLocalMapper } from "lib/anime/mapper/local";
 import { banner, log } from "lib/logger";
 
 /*
@@ -45,24 +46,39 @@ export async function nfoAction(
   let title: string = path.basename(animePath);
   let id: AnimeId | undefined;
 
+  let animeLocalMapper: AnimeLocalMapper;
+  try {
+    animeLocalMapper = new AnimeLocalMapper(config);
+    await animeLocalMapper.refresh();
+  } catch {
+    log(`Failed to initialize anime mappers!`, "error");
+    process.exitCode = 1;
+    return;
+  }
+
   log(`${title}: Identifying ...`, "step", true, id);
   if (opts.aid) id = { anidb: parseInt(`${opts.aid}`) } as AnimeId;
   // XXX: detect anidb from path
+  log(`${title}: Identifying ...`, "done", true, id);
+
   if (id?.anidb) {
+    log(`${title}: Mapping additonal IDs from cli flags ...`, "step", true, id);
     if (opts.anilistid) {
       id.anilist = parseInt(`${opts.anilistid}`);
-      log(`${title}: Identifying ...`, "step", true, id);
     }
-    // XXX: try map from aid
-    // XXX: try search anilist
     if (opts.tmdbid) {
       id.tmdb = parseInt(`${opts.tmdbid}`);
       id.tmdbSeason = 1; // hardcode this for now
-      log(`${title}: Identifying ...`, "step", true, id);
     }
-    // XXX: try map from aid
+    log(`${title}: Mapping additonal IDs from cli flags ...`, "done", true, id);
+
+    log(`${title}: Mapping additonal IDs from local mapping ...`, "step", true, id);
+    animeLocalMapper.apply(id);
+    log(`${title}: Mapping additonal IDs from local mapping ...`, "done", true, id);
+
+    // XXX: try search remote mapping
+    // XXX: try search anilist
     // XXX: try search themoviedb
-    log(`${title}: Identifying ...`, "done", true, id);
   } else {
     log(`${title}: Failed to identify anime!`, "error", true, id);
     process.exitCode = 1;
