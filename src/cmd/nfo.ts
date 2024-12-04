@@ -14,6 +14,8 @@ import { readConfig, validateConfig } from "lib/config";
 //import { TvShowNfo, EpisodeNfo } from "lib/nfo";
 import { AnimeIdmapLocal } from "lib/anime/idmap/local";
 import { AnimeIdmapList } from "lib/anime/idmap/list";
+import { AnimeIdmapAnilist } from "lib/anime/idmap/anilist";
+import { AnimeIdmapTmdb } from "lib/anime/idmap/tmdb";
 import { AnimeResolver } from "lib/anime/resolver";
 import { banner, log } from "lib/logger";
 
@@ -51,6 +53,8 @@ export async function nfoAction(
   let animeResolver: AnimeResolver;
   let animeIdmapLocal: AnimeIdmapLocal;
   let animeIdmapList: AnimeIdmapList;
+  let animeIdmapAnilist: AnimeIdmapAnilist | undefined;
+  let animeIdmapTmdb: AnimeIdmapTmdb | undefined;
   try {
     animeResolver = new AnimeResolver(config);
     await animeResolver.refresh();
@@ -60,6 +64,9 @@ export async function nfoAction(
 
     animeIdmapList = new AnimeIdmapList(config);
     await animeIdmapList.refresh();
+
+    if (config.anilist.token) animeIdmapAnilist = new AnimeIdmapAnilist(config);
+    if (config.tmdb.api_key) animeIdmapTmdb = new AnimeIdmapTmdb(config);
   } catch (_e: unknown) {
     const e = _e as Error;
     log(`Failed to initialize anime mappers!`, "error");
@@ -101,15 +108,24 @@ export async function nfoAction(
     animeIdmapList.apply(id);
     log(`${title}: Mapping IDs from list mapping ...`, "done", true, id);
 
-    // XXX: try search anilist
-    // XXX: try search themoviedb
+    if (animeIdmapAnilist && id.anilist === undefined) {
+      log(`${title}: Looking up Anilist ID ...`, "step", true, id);
+      animeIdmapAnilist.lookup(title, id);
+      log(`${title}: Looking up Anilist ID ...`, "done", true, id);
+    }
+
+    if (animeIdmapTmdb && id.tmdb === undefined) {
+      log(`${title}: Looking up Tmdb ID ...`, "step", true, id);
+      animeIdmapTmdb.lookup(title, id);
+      log(`${title}: Looking up Tmdb ID ...`, "done", true, id);
+    }
   } else {
     log(`${title}: Failed to identify anime!`, "error", true, id);
     process.exitCode = 1;
     return;
   }
 
-  // XXX: write nfos
+  log("XXX: write NFOs");
 }
 
 /*
