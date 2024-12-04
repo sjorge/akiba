@@ -37,7 +37,7 @@ type ListMapping = {
   };
 };
 
-export class AnimeListMapper {
+export class AnimeIdmapList {
   private mappingFile: string;
   private mappingCacheAge: number;
   private mappingCache: ListMapping = {};

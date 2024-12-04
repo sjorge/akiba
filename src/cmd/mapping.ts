@@ -11,7 +11,7 @@ import toml from "@iarna/toml";
 import { deepmergeInto } from "deepmerge-ts";
 
 import type { Config } from "lib/config";
-import type { LocalMapping } from "lib/anime/mapper/local";
+import type { LocalMapping } from "lib/anime/idmap/local";
 import { readConfig } from "lib/config";
 import { banner, log } from "lib/logger";
 

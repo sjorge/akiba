@@ -17,7 +17,7 @@ export type LocalMapping = {
   };
 };
 
-export class AnimeLocalMapper {
+export class AnimeIdmapLocal {
   private mappingFile: string;
   private mappingCache: LocalMapping = {};
 

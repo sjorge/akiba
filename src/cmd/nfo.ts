@@ -12,9 +12,9 @@ import type { Config } from "lib/config";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
 import { readConfig, validateConfig } from "lib/config";
 //import { TvShowNfo, EpisodeNfo } from "lib/nfo";
+import { AnimeIdmapLocal } from "lib/anime/idmap/local";
+import { AnimeIdmapList } from "lib/anime/idmap/list";
 import { AnimeResolver } from "lib/anime/resolver";
-import { AnimeLocalMapper } from "lib/anime/mapper/local";
-import { AnimeListMapper } from "lib/anime/mapper/list";
 import { banner, log } from "lib/logger";
 
 /*
@@ -49,17 +49,17 @@ export async function nfoAction(
   let id: AnimeId | undefined = undefined;
 
   let animeResolver: AnimeResolver;
-  let animeLocalMapper: AnimeLocalMapper;
-  let animeListMapper: AnimeListMapper;
+  let animeIdmapLocal: AnimeIdmapLocal;
+  let animeIdmapList: AnimeIdmapList;
   try {
     animeResolver = new AnimeResolver(config);
     await animeResolver.refresh();
 
-    animeLocalMapper = new AnimeLocalMapper(config);
-    await animeLocalMapper.refresh();
+    animeIdmapLocal = new AnimeIdmapLocal(config);
+    await animeIdmapLocal.refresh();
 
-    animeListMapper = new AnimeListMapper(config);
-    await animeListMapper.refresh();
+    animeIdmapList = new AnimeIdmapList(config);
+    await animeIdmapList.refresh();
   } catch (_e: unknown) {
     const e = _e as Error;
     log(`Failed to initialize anime mappers!`, "error");
@@ -94,11 +94,11 @@ export async function nfoAction(
     log(`${title}: Mapping IDs from cli flags ...`, "done", true, id);
 
     log(`${title}: Mapping IDs from local mapping ...`, "step", true, id);
-    animeLocalMapper.apply(id);
+    animeIdmapLocal.apply(id);
     log(`${title}: Mapping IDs from local mapping ...`, "done", true, id);
 
     log(`${title}: Mapping IDs from list mapping ...`, "step", true, id);
-    animeListMapper.apply(id);
+    animeIdmapList.apply(id);
     log(`${title}: Mapping IDs from list mapping ...`, "done", true, id);
 
     // XXX: try search anilist
