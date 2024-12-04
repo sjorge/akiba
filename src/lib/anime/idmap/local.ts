@@ -26,7 +26,7 @@ export class AnimeIdmapLocal {
   }
 
   public toString(): string {
-    return "AnimeLocalMapper";
+    return "AnimeIdmapLocal";
   }
 
   public async refresh(): Promise<boolean> {

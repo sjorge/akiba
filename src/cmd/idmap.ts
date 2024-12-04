@@ -18,7 +18,7 @@ import { banner, log } from "lib/logger";
 /*
  * Entrypoint `local-mapping` action for commander-js
  */
-async function mappingAction(aid: number, opts: OptionValues): Promise<void> {
+async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
   const config: Config = readConfig();
   const mapping: LocalMapping = {};
   const mappingFile = path.join(config.cache.path, "local.map.toml");
@@ -114,12 +114,12 @@ async function mappingAction(aid: number, opts: OptionValues): Promise<void> {
 /*
  * Setup `configure` command for commander-js
  */
-export function addMappingCommand(program: Command): void {
+export function addIdmapCommand(program: Command): void {
   program
-    .command("local-mapping")
-    .description("manage local mapping entries")
+    .command("idmap")
+    .description("manage local ID mapping entries")
     .addArgument(
-      new Argument("<aid>", "anidb anime id to manage mapping for").argParser(
+      new Argument("<aid>", "anidb id to manage mapping for").argParser(
         (value: string) => {
           const id = parseInt(value, 10);
           if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
@@ -149,7 +149,7 @@ export function addMappingCommand(program: Command): void {
     )
     .option("--no-tmdbid", "remove mapping to themoviedb series id")
     .addOption(new Option("--no-show", "show mapping for aid").default(true))
-    .action(mappingAction);
+    .action(idmapAction);
 }
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

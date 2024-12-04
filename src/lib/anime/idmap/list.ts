@@ -48,7 +48,7 @@ export class AnimeIdmapList {
   }
 
   public toString(): string {
-    return "AnimeListMapper";
+    return "AnimeIdmapList";
   }
 
   public async refresh(): Promise<boolean> {
