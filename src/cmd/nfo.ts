@@ -12,7 +12,9 @@ import type { TvShow, Episode, UniqueId } from "lib/nfo";
 import type { AnimeId } from "lib/anime";
 import { readConfig, validateConfig } from "lib/config";
 import { TvShowNfo, EpisodeNfo } from "lib/nfo";
+import { AniDBResolver } from "lib/anime/anidb";
 import { AnimeLocalMapper } from "lib/anime/mapper/local";
+import { AnimeListMapper } from "lib/anime/mapper/list";
 import { banner, log } from "lib/logger";
 
 /*
@@ -44,25 +46,44 @@ export async function nfoAction(
   }
 
   let title: string = path.basename(animePath);
-  let id: AnimeId | undefined;
+  let id: AnimeId | undefined = undefined;
 
+  let aniDBResolver: AniDBResolver;
   let animeLocalMapper: AnimeLocalMapper;
+  let animeListMapper: AnimeListMapper;
   try {
+    aniDBResolver = new AniDBResolver(config);
+    await aniDBResolver.refresh();
+
     animeLocalMapper = new AnimeLocalMapper(config);
     await animeLocalMapper.refresh();
-  } catch {
+
+    animeListMapper = new AnimeListMapper(config);
+    await animeListMapper.refresh();
+  } catch (_e: unknown) {
+    const e = _e as Error;
     log(`Failed to initialize anime mappers!`, "error");
+    log(e.message, "error");
     process.exitCode = 1;
     return;
   }
 
   log(`${title}: Identifying ...`, "step", true, id);
-  if (opts.aid) id = { anidb: parseInt(`${opts.aid}`) } as AnimeId;
-  // XXX: detect anidb from path
-  log(`${title}: Identifying ...`, "done", true, id);
+  id = opts.aid
+    ? ({ anidb: parseInt(`${opts.aid}`) } as AnimeId)
+    : aniDBResolver.resolveFromTitle(title);
 
   if (id?.anidb) {
-    log(`${title}: Mapping additonal IDs from cli flags ...`, "step", true, id);
+    // normalize title
+    aniDBResolver.titleFromId(id)?.forEach((t: AnimeTitleVariant) => {
+      if (t.type == "main" && t.language == "x-jat") {
+        title = t.title;
+      }
+    });
+
+    log(`${title}: Identifying ...`, "done", true, id);
+
+    log(`${title}: Mapping IDs from cli flags ...`, "step", true, id);
     if (opts.anilistid) {
       id.anilist = parseInt(`${opts.anilistid}`);
     }
@@ -70,13 +91,16 @@ export async function nfoAction(
       id.tmdb = parseInt(`${opts.tmdbid}`);
       id.tmdbSeason = 1; // hardcode this for now
     }
-    log(`${title}: Mapping additonal IDs from cli flags ...`, "done", true, id);
+    log(`${title}: Mapping IDs from cli flags ...`, "done", true, id);
 
-    log(`${title}: Mapping additonal IDs from local mapping ...`, "step", true, id);
+    log(`${title}: Mapping IDs from local mapping ...`, "step", true, id);
     animeLocalMapper.apply(id);
-    log(`${title}: Mapping additonal IDs from local mapping ...`, "done", true, id);
+    log(`${title}: Mapping IDs from local mapping ...`, "done", true, id);
 
-    // XXX: try search remote mapping
+    log(`${title}: Mapping IDs from list mapping ...`, "step", true, id);
+    animeListMapper.apply(id);
+    log(`${title}: Mapping IDs from list mapping ...`, "done", true, id);
+
     // XXX: try search anilist
     // XXX: try search themoviedb
   } else {
