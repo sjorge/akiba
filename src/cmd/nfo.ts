@@ -8,11 +8,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { Config } from "lib/config";
-import type { TvShow, Episode, UniqueId } from "lib/nfo";
-import type { AnimeId } from "lib/anime";
+//import type { TvShow, Episode, UniqueId } from "lib/nfo";
+import type { AnimeId, AnimeTitleVariant } from "lib/anime";
 import { readConfig, validateConfig } from "lib/config";
-import { TvShowNfo, EpisodeNfo } from "lib/nfo";
-import { AniDBResolver } from "lib/anime/anidb";
+//import { TvShowNfo, EpisodeNfo } from "lib/nfo";
+import { AnimeResolver } from "lib/anime/resolver";
 import { AnimeLocalMapper } from "lib/anime/mapper/local";
 import { AnimeListMapper } from "lib/anime/mapper/list";
 import { banner, log } from "lib/logger";
@@ -48,12 +48,12 @@ export async function nfoAction(
   let title: string = path.basename(animePath);
   let id: AnimeId | undefined = undefined;
 
-  let aniDBResolver: AniDBResolver;
+  let animeResolver: AnimeResolver;
   let animeLocalMapper: AnimeLocalMapper;
   let animeListMapper: AnimeListMapper;
   try {
-    aniDBResolver = new AniDBResolver(config);
-    await aniDBResolver.refresh();
+    animeResolver = new AnimeResolver(config);
+    await animeResolver.refresh();
 
     animeLocalMapper = new AnimeLocalMapper(config);
     await animeLocalMapper.refresh();
@@ -71,11 +71,11 @@ export async function nfoAction(
   log(`${title}: Identifying ...`, "step", true, id);
   id = opts.aid
     ? ({ anidb: parseInt(`${opts.aid}`) } as AnimeId)
-    : aniDBResolver.resolveFromTitle(title);
+    : animeResolver.resolveFromTitle(title);
 
   if (id?.anidb) {
     // normalize title
-    aniDBResolver.titleFromId(id)?.forEach((t: AnimeTitleVariant) => {
+    animeResolver.titleFromId(id)?.forEach((t: AnimeTitleVariant) => {
       if (t.type == "main" && t.language == "x-jat") {
         title = t.title;
       }

@@ -36,7 +36,7 @@ type TitleMapping = {
 
 const TitleAidRegEx = new RegExp(/\[anidb-(?<aid>\d+)\]/);
 
-export class AniDBResolver {
+export class AnimeResolver {
   private titleFile: string;
   private titleCacheAge: number;
   private titleCache: TitleMapping = {};
@@ -115,7 +115,7 @@ export class AniDBResolver {
     fs.chmodSync(this.titleFile, 0o660);
   }
 
-  public titleFromId(id: AnimeId): AnimeTitleVariant[] | undefined {
+  public titleFromId(id: AnimeId): AnimeTitleVariant[] {
     return this.titleCache[id.anidb];
   }
 
