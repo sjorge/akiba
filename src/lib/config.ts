@@ -24,7 +24,7 @@ export type Config = {
   };
   cache: {
     path: string;
-    anidb_age: number;
+    metadata_age: number;
     mapping_age: number;
   };
   overwrite_nfo: boolean;
@@ -56,7 +56,7 @@ export function readConfig(): Config {
     tmdb: {},
     cache: {
       path: cacheDir,
-      anidb_age: 90,
+      metadata_age: 90,
       mapping_age: 7,
     },
     overwrite_nfo: false,

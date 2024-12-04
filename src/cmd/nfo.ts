@@ -133,7 +133,7 @@ export function addNfoCommand(program: Command): void {
     .addOption(
       new Option(
         "--anilistid <id>",
-        "specify the anilist anime id instead of trying to auto detect",
+        "specify the anilist id instead of trying to auto detect",
       ).argParser((value: string) => {
         const id = parseInt(value, 10);
         if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
@@ -150,7 +150,9 @@ export function addNfoCommand(program: Command): void {
         return id;
       }),
     )
-    .addOption(new Option("--fresh", "force update metadata").default(false))
+    .addOption(
+      new Option("--fresh", "force retreiving metadata").default(false),
+    )
     .addOption(
       new Option("--force", "overwrite existing NFO files").default(false),
     )
