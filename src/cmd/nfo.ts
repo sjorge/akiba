@@ -66,7 +66,8 @@ export async function nfoAction(
     await animeIdmapList.refresh();
 
     if (config.anilist.token) animeIdmapAnilist = new AnimeIdmapAnilist(config);
-    if (config.tmdb.api_key) animeIdmapTmdb = new AnimeIdmapTmdb(config);
+    if (config.tmdb.api_key)
+      animeIdmapTmdb = new AnimeIdmapTmdb(config, animeResolver);
   } catch (_e: unknown) {
     const e = _e as Error;
     log(`Failed to initialize anime mappers!`, "error");
@@ -116,7 +117,7 @@ export async function nfoAction(
 
     if (animeIdmapTmdb && id.tmdb === undefined) {
       log(`${title}: Looking up Tmdb ID ...`, "step", true, id);
-      animeIdmapTmdb.lookup(title, id);
+      await animeIdmapTmdb.apply(id);
       log(`${title}: Looking up Tmdb ID ...`, "done", true, id);
     }
   } else {
