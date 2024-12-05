@@ -17,7 +17,7 @@ import { AnimeIdmapAnilist } from "lib/anime/idmap/anilist";
 import { AnimeIdmapTmdb } from "lib/anime/idmap/tmdb";
 import { AnimeResolver } from "lib/anime/resolver";
 import { AnimeMetadata } from "lib/anime/metadata";
-import { AnimeShowNfo } from "lib/anime/nfo";
+import { AnimeShowNfo, AnimeEpisodeNfo } from "lib/anime/nfo";
 import { banner, log } from "lib/logger";
 
 /*
@@ -140,11 +140,46 @@ export async function nfoAction(
   const metadata = await animeMetadata.get(id, opts.fresh as boolean);
   log(`${title}: Retrieving metadata ...`, "done");
 
-  // write nfo files
-  log(`${title}: Writing tshow.nfo ...`, "step");
+  // write tvshow.nfo
+  log(`${title}: Writing show NFO ...`, "step");
   const animeShowNfo = new AnimeShowNfo(id, metadata, animePath);
-  await animeShowNfo.write(opts.force as boolean, config.anidb.poster);
-  log(`${title}: Writing tshow.nfo ...`, "done");
+  if (
+    !animeShowNfo.isValid() ||
+    !(await animeShowNfo.write(opts.force as boolean, config.anidb.poster))
+  ) {
+    log(`${title}: Failed to write show NFO ...`, "error");
+    process.exitCode = 1;
+    return;
+  }
+  log(`${title}: Writing show NFO ...`, "done");
+
+  // write episode.nfo
+  for (const episode of animeResolver.episodes(animePath)) {
+    let titleSuffix: string = `${episode.episodeStart}`;
+    if (episode.episodeEnd != episode.episodeStart)
+      titleSuffix = `${titleSuffix}-${episode.episodeEnd}`;
+
+    log(
+      `${title}//${titleSuffix}: Writing episode NFO (${episode.title}) ...`,
+      "step",
+    );
+    const animeEpisodeNfo = new AnimeEpisodeNfo(id, episode, metadata);
+    if (
+      !animeEpisodeNfo.isValid() ||
+      !(await animeEpisodeNfo.write(opts.force as boolean))
+    ) {
+      log(
+        `${title}//${titleSuffix}: Failed to write episode NFO (${episode.title}) ...`,
+        "error",
+      );
+      process.exitCode = 1;
+    } else {
+      log(
+        `${title}//${titleSuffix}: Writing episode NFO (${episode.title}) ...`,
+        "done",
+      );
+    }
+  }
 }
 
 /*
