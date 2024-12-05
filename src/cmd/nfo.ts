@@ -17,6 +17,7 @@ import { AnimeIdmapList } from "lib/anime/idmap/list";
 import { AnimeIdmapAnilist } from "lib/anime/idmap/anilist";
 import { AnimeIdmapTmdb } from "lib/anime/idmap/tmdb";
 import { AnimeResolver } from "lib/anime/resolver";
+import { AnimeMetadata } from "lib/anime/metadata";
 import { banner, log } from "lib/logger";
 
 /*
@@ -55,6 +56,8 @@ export async function nfoAction(
   let animeIdmapList: AnimeIdmapList;
   let animeIdmapAnilist: AnimeIdmapAnilist | undefined;
   let animeIdmapTmdb: AnimeIdmapTmdb | undefined;
+  let animeMetadata: AnimeMetadata;
+
   try {
     animeResolver = new AnimeResolver(config);
     await animeResolver.refresh();
@@ -69,6 +72,8 @@ export async function nfoAction(
       animeIdmapAnilist = new AnimeIdmapAnilist(config, animeResolver);
     if (config.tmdb.api_key)
       animeIdmapTmdb = new AnimeIdmapTmdb(config, animeResolver);
+
+    animeMetadata = new AnimeMetadata(config);
   } catch (_e: unknown) {
     const e = _e as Error;
     log(`Failed to initialize anime mappers!`, "error");
@@ -82,51 +87,66 @@ export async function nfoAction(
     ? ({ anidb: parseInt(`${opts.aid}`) } as AnimeId)
     : animeResolver.resolveFromTitle(title);
 
-  if (id?.anidb) {
-    // normalize title
-    animeResolver.titleFromId(id)?.forEach((t: AnimeTitleVariant) => {
-      if (t.type == "main" && t.language == "x-jat") {
-        title = t.title;
-      }
-    });
-
-    log(`${title}: Identifying ...`, "done", true, id);
-
-    log(`${title}: Mapping IDs from cli flags ...`, "step", true, id);
-    if (opts.anilistid) {
-      id.anilist = parseInt(`${opts.anilistid}`);
-    }
-    if (opts.tmdbid) {
-      id.tmdb = parseInt(`${opts.tmdbid}`);
-      id.tmdbSeason = 1; // hardcode this for now
-    }
-    log(`${title}: Mapping IDs from cli flags ...`, "done", true, id);
-
-    log(`${title}: Mapping IDs from local mapping ...`, "step", true, id);
-    animeIdmapLocal.apply(id);
-    log(`${title}: Mapping IDs from local mapping ...`, "done", true, id);
-
-    log(`${title}: Mapping IDs from list mapping ...`, "step", true, id);
-    animeIdmapList.apply(id);
-    log(`${title}: Mapping IDs from list mapping ...`, "done", true, id);
-
-    if (animeIdmapAnilist && id.anilist === undefined) {
-      log(`${title}: Looking up Anilist ID ...`, "step", true, id);
-      await animeIdmapAnilist.lookup(title, id);
-      log(`${title}: Looking up Anilist ID ...`, "done", true, id);
-    }
-
-    if (animeIdmapTmdb && id.tmdb === undefined) {
-      log(`${title}: Looking up Tmdb ID ...`, "step", true, id);
-      await animeIdmapTmdb.apply(id);
-      log(`${title}: Looking up Tmdb ID ...`, "done", true, id);
-    }
-  } else {
+  // unable to identify anime, exit
+  if (id?.anidb === undefined) {
     log(`${title}: Failed to identify anime!`, "error", true, id);
     process.exitCode = 1;
     return;
   }
 
+  // normalize title
+  animeResolver.titleFromId(id)?.forEach((t: AnimeTitleVariant) => {
+    if (t.type == "main" && t.language == "x-jat") {
+      title = t.title;
+    }
+  });
+  log(`${title}: Identifying ...`, "done", true, id);
+
+  // add additional ids from cli flags
+  log(`${title}: Mapping IDs from cli flags ...`, "step", true, id);
+  if (opts.anilistid) {
+    id.anilist = parseInt(`${opts.anilistid}`);
+  }
+  if (opts.tmdbid) {
+    id.tmdb = parseInt(`${opts.tmdbid}`);
+    id.tmdbSeason = 1; // hardcode this for now
+  }
+  log(`${title}: Mapping IDs from cli flags ...`, "done", true, id);
+
+  // add additional ids from local and online lists
+  log(`${title}: Mapping IDs from local mapping ...`, "step", true, id);
+  animeIdmapLocal.apply(id);
+  log(`${title}: Mapping IDs from local mapping ...`, "done", true, id);
+
+  log(`${title}: Mapping IDs from list mapping ...`, "step", true, id);
+  animeIdmapList.apply(id);
+  log(`${title}: Mapping IDs from list mapping ...`, "done", true, id);
+
+  // (optionally) search providers for additional ids
+  if (animeIdmapAnilist && id.anilist === undefined) {
+    log(`${title}: Looking up Anilist ID ...`, "step", true, id);
+    await animeIdmapAnilist.lookup(title, id);
+    log(`${title}: Looking up Anilist ID ...`, "done", true, id);
+  }
+
+  if (animeIdmapTmdb && id.tmdb === undefined) {
+    log(`${title}: Looking up Tmdb ID ...`, "step", true, id);
+    await animeIdmapTmdb.apply(id);
+    log(`${title}: Looking up Tmdb ID ...`, "done", true, id);
+  }
+
+  // lookup metadata
+  log(`${title}: Retrieving metadata ...`, "step");
+  const data = await animeMetadata.get(id, opts.fresh as boolean);
+  console.log(JSON.stringify(data));
+  //if (data == undefined) {
+  //    log(`${title}: Failed to retreive metadata!`, "error");
+  //    process.exitCode = 1;
+  //    return;
+  //}
+  log(`${title}: Retrieving metadata ...`, "done");
+
+  // write nfo files
   log("XXX: write NFOs");
   log(`Ids: ${JSON.stringify(id)}`);
 }
