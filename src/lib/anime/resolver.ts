@@ -34,7 +34,23 @@ type TitleMapping = {
   [anidb: number]: AnimeTitleVariant[];
 };
 
-const TitleAidRegEx = new RegExp(/\[anidb-(?<aid>\d+)\]/);
+const titleAidRegEx = new RegExp(/\[anidb-(?<aid>\d+)\]/);
+
+export type EpisodeFile = {
+  path: string;
+  episodeStart: number;
+  episodeEnd: number;
+  title: string;
+};
+
+const episodeSingleTitleRegEx = new RegExp(
+  /\s-\s(?<episode>(S|C|T|P|O|E)?\d+)\s-\s(?<title>.+)\.\w{3}/,
+);
+const episodeMultiTitleRegEx = new RegExp(
+  /\s-\s(?<episode>(S|C|T|P|O)?\d+-(S|C|T|P|O)?\d+)\s-\s(?<title>.+)\.\w{3}/,
+);
+const episodeCrc32RegEx = new RegExp(/.+(?<crc32>\([A-Za-z0-9]{8}\))/);
+const episodeExtensions: string[] = [".mkv", ".mp4", ".ogm", ".avi"];
 
 export class AnimeResolver {
   private titleFile: string;
@@ -121,7 +137,7 @@ export class AnimeResolver {
 
   public resolveFromTitle(title: string): AnimeId | undefined {
     // match [anidb-<aid>] tag
-    const aidMatch: RegExpExecArray | null = TitleAidRegEx.exec(title);
+    const aidMatch: RegExpExecArray | null = titleAidRegEx.exec(title);
     if (aidMatch !== null) {
       return { anidb: parseInt(aidMatch[1]) } as AnimeId;
     }
@@ -162,6 +178,50 @@ export class AnimeResolver {
     }
 
     return undefined;
+  }
+
+  public episodes(animePath: string): EpisodeFile[] {
+    const episodes: EpisodeFile[] = [];
+
+    // check path exists
+    if (!fs.existsSync(animePath)) return [];
+    if (!fs.statSync(animePath).isDirectory()) return [];
+
+    // read anime show path
+    for (const episodePath of fs.readdirSync(animePath)) {
+      if (!episodeExtensions.includes(path.extname(episodePath))) continue;
+
+      const singleEpisode = episodeSingleTitleRegEx.exec(episodePath)?.groups;
+      const multiEpisode = episodeMultiTitleRegEx.exec(episodePath)?.groups;
+
+      let title: string | undefined = undefined;
+      let episode: number[] = [];
+      if (singleEpisode) {
+        title = singleEpisode?.title;
+        episode = [parseInt(`${singleEpisode?.episode}`)];
+      } else if (multiEpisode) {
+        title = multiEpisode?.title;
+        episode = multiEpisode?.episode.split("-").map((ep: string): number => {
+          return parseInt(ep);
+        });
+      }
+
+      // skip if we couldn't parse the episode filename
+      if (title === undefined) continue;
+
+      // strip checkum from filename
+      const checksum = episodeCrc32RegEx.exec(title)?.groups;
+      if (checksum) title = title.replace(checksum?.crc32, "");
+
+      // add episode
+      episodes.push({
+        path: path.join(animePath, episodePath),
+        episodeStart: episode[0],
+        episodeEnd: episode[episode.length - 1],
+        title: title.trim(),
+      } as EpisodeFile);
+    }
+    return episodes;
   }
 }
 
