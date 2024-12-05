@@ -1,0 +1,14 @@
+- commands
+  - write-nfo
+    - fix https://www.themoviedb.org/talk/675427102a0e9c79f19b8d0e
+  - rename
+    - animeRenamer.identify
+      - anidb-udp client (with custom cache on ed2khash in ~/.cache/akiba/anidb/fid_<hash>.dat) fetch data
+        - use https://github.com/tsukeero/anidb-udp-client (https://wiki.anidb.net/UDP_API_Definition) for file_by_hash call (we need a login it seems)
+      - return AnimeRenamerEpisode { path: string; ed2khash: Ed2khash; data: AnimeFormatStringData; }
+    - animeRenamer.rename(AnimeRenamerEpisode)
+      - ensure format cannot contain /
+      - allow targetPath to contain / and apply same format logic
+      - allow target set via cli flag
+    - mark as owned
+  - batch (for cron where we run a rename + write-nfo on a directory)
