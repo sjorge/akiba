@@ -65,7 +65,8 @@ export async function nfoAction(
     animeIdmapList = new AnimeIdmapList(config);
     await animeIdmapList.refresh();
 
-    if (config.anilist.token) animeIdmapAnilist = new AnimeIdmapAnilist(config);
+    if (config.anilist.token)
+      animeIdmapAnilist = new AnimeIdmapAnilist(config, animeResolver);
     if (config.tmdb.api_key)
       animeIdmapTmdb = new AnimeIdmapTmdb(config, animeResolver);
   } catch (_e: unknown) {
@@ -111,7 +112,7 @@ export async function nfoAction(
 
     if (animeIdmapAnilist && id.anilist === undefined) {
       log(`${title}: Looking up Anilist ID ...`, "step", true, id);
-      animeIdmapAnilist.lookup(title, id);
+      await animeIdmapAnilist.lookup(title, id);
       log(`${title}: Looking up Anilist ID ...`, "done", true, id);
     }
 
@@ -127,6 +128,7 @@ export async function nfoAction(
   }
 
   log("XXX: write NFOs");
+  log(`Ids: ${JSON.stringify(id)}`);
 }
 
 /*
