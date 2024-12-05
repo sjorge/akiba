@@ -36,10 +36,12 @@ type TitleMapping = {
 
 const titleAidRegEx = new RegExp(/\[anidb-(?<aid>\d+)\]/);
 
+// WARN: we episodeStart/episodeEnd need to be strings
+//       to support things like S1, OP1, ...
 export type EpisodeFile = {
   path: string;
-  episodeStart: number;
-  episodeEnd: number;
+  episodeStart: string;
+  episodeEnd: string;
   title: string;
 };
 
@@ -195,14 +197,18 @@ export class AnimeResolver {
       const multiEpisode = episodeMultiTitleRegEx.exec(episodePath)?.groups;
 
       let title: string | undefined = undefined;
-      let episode: number[] = [];
+      let episode: string[] = [];
       if (singleEpisode) {
         title = singleEpisode?.title;
-        episode = [parseInt(`${singleEpisode?.episode}`)];
+        episode = [
+          singleEpisode?.episode.startsWith("0")
+            ? `${parseInt(singleEpisode?.episode)}`
+            : `${singleEpisode?.episode}`,
+        ];
       } else if (multiEpisode) {
         title = multiEpisode?.title;
-        episode = multiEpisode?.episode.split("-").map((ep: string): number => {
-          return parseInt(ep);
+        episode = multiEpisode?.episode.split("-").map((ep: string): string => {
+          return `${parseInt(ep)}`;
         });
       }
 
