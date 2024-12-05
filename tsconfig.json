@@ -8,6 +8,9 @@
     "jsx": "react-jsx",
     "allowJs": true,
 
+    // Inject additional types
+    "typeRoots": ["./types"],
+
     // Bundler mode
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

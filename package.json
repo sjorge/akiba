@@ -31,6 +31,7 @@
   "dependencies": {
     "@commander-js/extra-typings": "^12.1.0",
     "@iarna/toml": "^2.2.5",
+    "anidbjs": "^2.4.4",
     "anilist-node": "^1.14.1",
     "axios": "^1.7.8",
     "commander": "^12.1.0",
