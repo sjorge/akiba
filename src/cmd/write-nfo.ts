@@ -8,16 +8,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { Config } from "lib/config";
-//import type { TvShow, Episode, UniqueId } from "lib/nfo";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
+
 import { readConfig, validateConfig } from "lib/config";
-//import { TvShowNfo, EpisodeNfo } from "lib/nfo";
 import { AnimeIdmapLocal } from "lib/anime/idmap/local";
 import { AnimeIdmapList } from "lib/anime/idmap/list";
 import { AnimeIdmapAnilist } from "lib/anime/idmap/anilist";
 import { AnimeIdmapTmdb } from "lib/anime/idmap/tmdb";
 import { AnimeResolver } from "lib/anime/resolver";
 import { AnimeMetadata } from "lib/anime/metadata";
+import { AnimeShowNfo } from "lib/anime/nfo";
 import { banner, log } from "lib/logger";
 
 /*
@@ -137,18 +137,14 @@ export async function nfoAction(
 
   // lookup metadata
   log(`${title}: Retrieving metadata ...`, "step");
-  const data = await animeMetadata.get(id, opts.fresh as boolean);
-  console.log(JSON.stringify(data));
-  //if (data == undefined) {
-  //    log(`${title}: Failed to retreive metadata!`, "error");
-  //    process.exitCode = 1;
-  //    return;
-  //}
+  const metadata = await animeMetadata.get(id, opts.fresh as boolean);
   log(`${title}: Retrieving metadata ...`, "done");
 
   // write nfo files
-  log("XXX: write NFOs");
-  log(`Ids: ${JSON.stringify(id)}`);
+  log(`${title}: Writing tshow.nfo ...`, "step");
+  const animeShowNfo = new AnimeShowNfo(id, metadata, animePath);
+  await animeShowNfo.write(opts.force as boolean, config.anidb.poster);
+  log(`${title}: Writing tshow.nfo ...`, "done");
 }
 
 /*
