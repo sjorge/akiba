@@ -220,9 +220,7 @@ export function addNfoCommand(program: Command): void {
         return id;
       }),
     )
-    .addOption(
-      new Option("--fresh", "force retreiving metadata").default(false),
-    )
+    .addOption(new Option("--fresh", "force retrieve metadata").default(false))
     .addOption(
       new Option("--force", "overwrite existing NFO files").default(false),
     )
