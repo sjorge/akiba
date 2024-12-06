@@ -39,7 +39,7 @@ export class AnimeIdmapTmdb {
 
     // select official japanese title if available
     const mainTitle: AnimeTitleVariant[] = this.resolver
-      .titleFromId(id)
+      .title(id)
       .filter((t: AnimeTitleVariant) => {
         if (t.type == "official" && t.language == "ja") {
           return t;

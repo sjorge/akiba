@@ -86,7 +86,7 @@ export async function nfoAction(
   log(`${title}: Identifying ...`, "step", true, id);
   id = opts.aid
     ? ({ anidb: parseInt(`${opts.aid}`) } as AnimeId)
-    : animeResolver.resolveFromTitle(title);
+    : animeResolver.id(title);
 
   // unable to identify anime, exit
   if (id?.anidb === undefined) {
@@ -96,7 +96,7 @@ export async function nfoAction(
   }
 
   // normalize title
-  animeResolver.titleFromId(id)?.forEach((t: AnimeTitleVariant) => {
+  animeResolver.title(id)?.forEach((t: AnimeTitleVariant) => {
     if (t.type == "main" && t.language == "x-jat") {
       title = t.title;
     }

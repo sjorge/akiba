@@ -133,11 +133,11 @@ export class AnimeResolver {
     fs.chmodSync(this.titleFile, 0o660);
   }
 
-  public titleFromId(id: AnimeId): AnimeTitleVariant[] {
+  public title(id: AnimeId): AnimeTitleVariant[] {
     return this.titleCache[id.anidb];
   }
 
-  public resolveFromTitle(title: string): AnimeId | undefined {
+  public id(title: string): AnimeId | undefined {
     // match [anidb-<aid>] tag
     const aidMatch: RegExpExecArray | null = titleAidRegEx.exec(title);
     if (aidMatch !== null) {
