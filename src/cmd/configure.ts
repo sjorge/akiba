@@ -19,9 +19,22 @@ import { banner, log } from "lib/logger";
 async function configureAction(opts: OptionValues): Promise<void> {
   const config: Config = readConfig();
 
-  if (opts.anidbClient) config.anidb.client.name = `${opts.anidbClient}`;
-  if (opts.anidbVersion)
-    config.anidb.client.version = parseInt(`${opts.anidbVersion}`, 10);
+  if (opts.anidbHttpClient) {
+    const httpClientVersion = (opts.anidbHttpClient as string).split("/");
+    if (httpClientVersion.length == 1) httpClientVersion.push("1");
+    config.anidb.http_client.name = httpClientVersion[0];
+    config.anidb.http_client.version = parseInt(httpClientVersion[1], 10);
+  }
+  if (opts.anidbUdpClient) {
+    const udpClientVersion = (opts.anidbUdpClient as string).split("/");
+    if (udpClientVersion.length == 1) udpClientVersion.push("1");
+    config.anidb.udp_client.name = udpClientVersion[0];
+    config.anidb.udp_client.version = parseInt(udpClientVersion[1], 10);
+  }
+  if (opts.anidbAuthUsername)
+    config.anidb.udp_client.username = `${opts.anidbAuthUsername}`;
+  if (opts.anidbAuthPassword)
+    config.anidb.udp_client.password = `${opts.anidbAuthPassword}`;
   if (typeof opts.anidbPoster == "boolean")
     config.anidb.poster = opts.anidbPoster;
   if (opts.tmdbApiKey) config.tmdb.api_key = `${opts.tmdbApiKey}`;
@@ -32,7 +45,9 @@ async function configureAction(opts: OptionValues): Promise<void> {
   if (!writeConfig(config)) {
     log(`Failed to update ${configFile}!`, "error");
     process.exitCode = 1;
-  } else if (!validateConfig(config, true)) {
+  } else if (!validateConfig(config, "write-nfo", true)) {
+    process.exitCode = 1;
+  } else if (!validateConfig(config, "renamer", true)) {
     process.exitCode = 1;
   }
 
@@ -46,19 +61,36 @@ async function configureAction(opts: OptionValues): Promise<void> {
  * Setup `configure` command for commander-js
  */
 export function addConfigureCommand(program: Command): void {
+  function anidbClientValidation(value: string): string {
+    const clientVersion = value.split("/");
+    if (clientVersion.length == 1) clientVersion.push("1");
+
+    if (isNaN(parseInt(clientVersion[1], 10)))
+      throw new InvalidArgumentError("Expecting a number for version.");
+
+    return value;
+  }
+
   program
     .command("configure")
     .description("update configuration file")
-    .option("--anidb-client <client>", "your anidb http client name")
     .addOption(
       new Option(
-        "--anidb-version <version>",
-        "your anidb http client version",
-      ).argParser((value: string) => {
-        const id = parseInt(value, 10);
-        if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-        return id;
-      }),
+        "--anidb-http-client <upd_client>",
+        "your anidb udp client (format: <name>/<version>)",
+      ).argParser(anidbClientValidation),
+    )
+    .addOption(
+      new Option(
+        "--anidb-udp-client <upd_client>",
+        "your anidb udp client (format: <name>/<version>)",
+      ).argParser(anidbClientValidation),
+    )
+    .addOption(
+      new Option("--anidb-auth-username <username>", "your anidb username"),
+    )
+    .addOption(
+      new Option("--anidb-auth-password <password>", "your anidb password"),
     )
     .option("--anidb-poster", "enable anidb poster fetching")
     .option("--no-anidb-poster", "disable anidb poster fetching")

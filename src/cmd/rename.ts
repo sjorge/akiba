@@ -30,11 +30,7 @@ export async function renameAction(
 ): Promise<void> {
   // read config and handle some overrides
   const config: Config = readConfig();
-  if (!validateConfig(config, true)) {
-    log(
-      "Please run 'configure' and configure at least --anidb-client and --anidb-version!",
-      "error",
-    );
+  if (!validateConfig(config, "renamer", true)) {
     process.exitCode = 1;
     return;
   }
