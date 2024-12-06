@@ -27,6 +27,10 @@ export type Config = {
     metadata_age: number;
     mapping_age: number;
   };
+  renamer: {
+    format: string;
+    targetPath?: string;
+  };
   overwrite_nfo: boolean;
 };
 
@@ -58,6 +62,10 @@ export function readConfig(): Config {
       path: cacheDir,
       metadata_age: 90,
       mapping_age: 7,
+    },
+    renamer: {
+      format:
+        "{anime_name_romaji}/{anime_name_romaji} - {episode} - {episode_name} ({crc32}).{filetype}",
     },
     overwrite_nfo: false,
   };
