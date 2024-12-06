@@ -9,10 +9,17 @@ import { banner, log } from "lib/logger";
 
 export type Config = {
   anidb: {
-    url: string;
-    client: {
+    http_client: {
+      url: string;
       name?: string;
       version?: number;
+    };
+    udp_client: {
+      host: string;
+      name?: string;
+      version?: number;
+      username?: string;
+      password?: string;
     };
     poster: boolean;
   };
@@ -26,6 +33,7 @@ export type Config = {
     path: string;
     metadata_age: number;
     mapping_age: number;
+    hash_age: number;
   };
   renamer: {
     format: string;
@@ -52,8 +60,8 @@ export const configFile: string = process.env.AKIBA_CONFIG
 export function readConfig(): Config {
   let config: Config = {
     anidb: {
-      url: "http://api.anidb.net:9001/httpapi",
-      client: {},
+      http_client: { url: "http://api.anidb.net:9001/httpapi" },
+      udp_client: { host: "api.anidb.net:9000" },
       poster: false,
     },
     anilist: {},
@@ -62,6 +70,7 @@ export function readConfig(): Config {
       path: cacheDir,
       metadata_age: 90,
       mapping_age: 7,
+      hash_age: 30,
     },
     renamer: {
       format:
@@ -103,29 +112,76 @@ export function writeConfig(config: Config): boolean {
  */
 export function validateConfig(
   config: Config,
+  command: "write-nfo" | "renamer",
   verbose: boolean = false,
 ): boolean {
   let ret = true;
-  if (config.anidb.url === undefined) {
-    if (verbose) {
-      banner();
-      log("AniDB URL is missing from configration!", "error");
+
+  if (command == "write-nfo") {
+    if (config.anidb.http_client.url === undefined) {
+      if (verbose) {
+        banner();
+        log("Please configure the AniDB URL!", "error");
+      }
+      ret = false;
     }
-    ret = false;
+
+    if (
+      config.anidb.http_client.name === undefined ||
+      config.anidb.http_client.version === undefined
+    ) {
+      if (verbose) {
+        banner();
+        log(
+          "AniDB HTTP Client not configured! Please set with --anidb-http-client",
+          "error",
+        );
+        log(
+          "Please register a project on https://anidb.net/software/add, and add a HTTP client",
+          "error",
+        );
+      }
+      ret = false;
+    }
   }
-  if (
-    config.anidb.client.name === undefined ||
-    config.anidb.client.version === undefined
-  ) {
-    if (verbose) {
-      banner();
-      log("AniDB Client Name/Version is not set!", "error");
-      log(
-        "Please register a HTTP client on https://anidb.net/software/add",
-        "error",
-      );
+  if (command == "renamer") {
+    if (config.anidb.udp_client.host === undefined) {
+      if (verbose) {
+        banner();
+        log("Please configure the AniDB Host!", "error");
+      }
+      ret = false;
     }
-    ret = false;
+    if (
+      config.anidb.udp_client.name === undefined ||
+      config.anidb.udp_client.version === undefined
+    ) {
+      if (verbose) {
+        banner();
+        log(
+          "AniDB UDP Client not configured! Please set with --anidb-udp-client.",
+          "error",
+        );
+        log(
+          "Please register a project on https://anidb.net/software/add, and add a UDP client",
+          "error",
+        );
+      }
+      ret = false;
+    }
+    if (
+      config.anidb.udp_client.username === undefined ||
+      config.anidb.udp_client.password === undefined
+    ) {
+      if (verbose) {
+        banner();
+        log(
+          "AniDB UDP Client missing username and password configuration! Please set with --anidb-auth-username and --anidb-auth-password.",
+          "error",
+        );
+      }
+      ret = false;
+    }
   }
   return ret;
 }
