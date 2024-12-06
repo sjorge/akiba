@@ -75,7 +75,7 @@ declare class AniDB {
       version: string;
     },
     options?: {
-      baseUrl?: string;
+      prefixUrl?: string;
       timeout?: string;
       agent?: string;
       headers?: {
