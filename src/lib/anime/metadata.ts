@@ -19,10 +19,11 @@ export class AnimeMetadata {
   public constructor(config: Config) {
     this.anidb = new AniDB(
       {
-        client: config.anidb.client.name,
-        version: config.anidb.client.version,
+        client: config.anidb.http_client.name,
+        version: config.anidb.http_client.version,
       },
       {
+        prefixUrl: config.anidb.http_client.url,
         headers: {
           "User-Agent": `${_DEFINE_PROG}/${_DEFINE_VER}`,
         },
