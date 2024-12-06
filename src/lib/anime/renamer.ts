@@ -201,6 +201,12 @@ export async function generateEd2kHash(file: string): Promise<Ed2kHash> {
   } as Ed2kHash;
 }
 
+export type AnimeRenamerEpisode = {
+  path: string;
+  ed2khash: Ed2kHash;
+  data?: AnimeFormatStringData;
+};
+
 export class AnimeRenamer {
   private format: string;
   private rehash: boolean;
@@ -215,21 +221,36 @@ export class AnimeRenamer {
     return "AnimeRenamer";
   }
 
-  public async identify(animeEpisodeFile: string): Promise<void> {
+  public async identify(
+    animeEpisodeFile: string,
+    hashOnly: boolean = false,
+  ): Promise<AnimeRenamerEpisode> {
     const episodeHash = await generateEd2kHash(animeEpisodeFile);
-    console.log(
-      `${animeEpisodeFile}: size=${episodeHash.size} hash=${episodeHash.hash}`,
-    );
+
+    // quick return if hashing only
+    if (hashOnly)
+      return {
+        path: animeEpisodeFile,
+        ed2khash: episodeHash,
+      } as AnimeRenamerEpisode;
+
+    // read data from anidb api
+    const episodeData = undefined;
+
+    return {
+      path: animeEpisodeFile,
+      ed2khash: episodeHash,
+      data: episodeData,
+    } as AnimeRenamerEpisode;
   }
 
   public async rename(
-    animeEpisodeFile: string,
-    metadata: AniDB_Show,
+    episode: AnimeRenamerEpisode,
     overwrite: boolean = false,
     symlink: boolean = true,
   ): Promise<void> {
     console.log(
-      `TODO ${symlink ? "symlink" : "move"} ${animeEpisodeFile} using metadata ${metadata}, overwrite = ${overwrite}`,
+      `TODO ${symlink ? "symlink" : "move"} ${episode.path} using metadata ${episode.data}, overwrite = ${overwrite}`,
     );
   }
 }
