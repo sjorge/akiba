@@ -1,6 +1,7 @@
 import type { OptionValues } from "@commander-js/extra-typings";
 import {
   Command,
+  Argument,
   Option,
   InvalidArgumentError,
 } from "@commander-js/extra-typings";
@@ -189,7 +190,14 @@ export function addNfoCommand(program: Command): void {
   program
     .command("write-nfo")
     .description("write NFO files")
-    .argument("<path>", "path to anime show directory")
+    .addArgument(
+      new Argument("<path>", "path to anime show directory").argParser(
+        (value: string) => {
+          if (!path.isAbsolute(value)) return path.resolve(value);
+          return value;
+        },
+      ),
+    )
     .addOption(
       new Option(
         "--aid <id>",
