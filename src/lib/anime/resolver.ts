@@ -66,7 +66,7 @@ export class AnimeResolver {
   }
 
   public toString(): string {
-    return "AniDBResolver";
+    return "AnimeResolver";
   }
 
   public async refresh(): Promise<void> {
