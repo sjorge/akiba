@@ -65,19 +65,31 @@ export function animeFormatString(
   data: AnimeFormatStringData,
 ): string {
   return template.replace(
-    /{(\w+)}/g,
-    (match: string, tag: keyof AnimeFormatStringData) => {
+    /{(\w+)(?::(\w+))?}/g,
+    (match: string, tag: keyof AnimeFormatStringData, modifier?: string) => {
       if (data[tag] === undefined)
         throw new AnimeFormatStringException(
-          `The tag ${match} is not known, available: ${Object.keys(data).join(", ")}.`,
+          `The tag ${match} is not known, available tags: ${Object.keys(data).join(", ")}, modifier: upper, lower, lower_first, upper_first, number.`,
         );
-
-      return data[tag];
+      switch (modifier?.toLowerCase()) {
+        case "upper":
+          return data[tag].toUpperCase();
+        case "lower":
+          return data[tag].toLowerCase();
+        case "upper_first":
+          return data[tag].toUpperCase().substring(0, 1);
+        case "lower_first":
+          return data[tag].toLowerCase().substring(0, 1);
+        case "number": // can be used to turn 013 -> 13
+          return `${parseInt(data[tag], 10)}`;
+        default:
+          return data[tag];
+      }
     },
   );
 }
 
-export function animeFormatValidate(
+export function animeValidateString(
   template: string,
   thowException: boolean = false,
 ): boolean {

@@ -14,7 +14,7 @@ import { readConfig, validateConfig } from "lib/config";
 import { banner, log } from "lib/logger";
 import {
   AnimeRenamer,
-  animeFormatValidate,
+  animeValidateString,
   AnimeFormatStringException,
 } from "lib/anime/renamer";
 
@@ -138,7 +138,7 @@ export function addRenameCommand(program: Command): void {
         "overwrite format for the desination filename",
       ).argParser((value: string) => {
         try {
-          animeFormatValidate(value, true);
+          animeValidateString(value, true);
         } catch (_e: unknown) {
           const e = _e as AnimeFormatStringException;
           throw new InvalidArgumentError(`${e.message}`);
