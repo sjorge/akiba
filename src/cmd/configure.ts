@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { OptionValues } from "@commander-js/extra-typings";
 import {
   Command,
@@ -11,6 +13,10 @@ import {
   validateConfig,
   configFile,
 } from "lib/config";
+import {
+  animeValidateString,
+  AnimeFormatStringException,
+} from "lib/anime/renamer";
 import { banner, log } from "lib/logger";
 
 /*
@@ -25,22 +31,34 @@ async function configureAction(opts: OptionValues): Promise<void> {
     config.anidb.http_client.name = httpClientVersion[0];
     config.anidb.http_client.version = parseInt(httpClientVersion[1], 10);
   }
+
   if (opts.anidbUdpClient) {
     const udpClientVersion = (opts.anidbUdpClient as string).split("/");
     if (udpClientVersion.length == 1) udpClientVersion.push("1");
     config.anidb.udp_client.name = udpClientVersion[0];
     config.anidb.udp_client.version = parseInt(udpClientVersion[1], 10);
   }
+
   if (opts.anidbAuthUsername)
     config.anidb.udp_client.username = `${opts.anidbAuthUsername}`;
   if (opts.anidbAuthPassword)
     config.anidb.udp_client.password = `${opts.anidbAuthPassword}`;
+
   if (typeof opts.anidbPoster == "boolean")
     config.anidb.poster = opts.anidbPoster;
+
   if (opts.tmdbApiKey) config.tmdb.api_key = `${opts.tmdbApiKey}`;
   if (opts.anilistToken) config.anilist.token = `${opts.anilistToken}`;
+
   if (typeof opts.overwriteNfo == "boolean")
     config.overwrite_nfo = opts.overwriteNfo;
+
+  if (opts.renameFormat) config.renamer.format = `${opts.renameFormat}`;
+  if (typeof opts.renameTargetPath == "boolean") {
+    config.renamer.targetPath = undefined;
+  } else {
+    config.renamer.targetPath = `${opts.renameTargetPath}`;
+  }
 
   if (!writeConfig(config)) {
     log(`Failed to update ${configFile}!`, "error");
@@ -76,13 +94,13 @@ export function addConfigureCommand(program: Command): void {
     .description("update configuration file")
     .addOption(
       new Option(
-        "--anidb-http-client <upd_client>",
+        "--anidb-http-client <http_client>",
         "your anidb udp client (format: <name>/<version>)",
       ).argParser(anidbClientValidation),
     )
     .addOption(
       new Option(
-        "--anidb-udp-client <upd_client>",
+        "--anidb-udp-client <udp_client>",
         "your anidb udp client (format: <name>/<version>)",
       ).argParser(anidbClientValidation),
     )
@@ -98,6 +116,36 @@ export function addConfigureCommand(program: Command): void {
     .option("--tmdb-api-key <key>", "your tmdb API key")
     .option("--overwrite-nfo", "overwrite existing nfo by default")
     .option("--no-overwrite-nfo", "keep existing nfo by default")
+    .addOption(
+      new Option(
+        "--rename-format <format>",
+        "format for the desination filename",
+      ).argParser((value: string) => {
+        try {
+          animeValidateString(value, true);
+        } catch (_e: unknown) {
+          const e = _e as AnimeFormatStringException;
+          throw new InvalidArgumentError(`${e.message}`);
+        }
+        return value;
+      }),
+    )
+    .addOption(
+      new Option("--rename-target-path <path>", "desination path").argParser(
+        (value: string) => {
+          if (!path.isAbsolute(value)) value = path.resolve(value);
+
+          if (!fs.existsSync(value) || !fs.lstatSync(value).isDirectory()) {
+            throw new InvalidArgumentError(
+              `Path ${value} is no a directory or does not exist!`,
+            );
+          }
+
+          return value;
+        },
+      ),
+    )
+    .option("--no-rename-target-path", "use current working directory")
     .option("--dump", "dump configuration")
     .action(configureAction);
 }
