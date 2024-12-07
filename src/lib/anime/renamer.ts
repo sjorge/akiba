@@ -3,7 +3,9 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import toml from "@iarna/toml";
 import { createMD4 } from "hash-wasm";
+import { machineIdSync } from "node-machine-id";
 
 import type { Config } from "lib/config";
 
@@ -151,7 +153,7 @@ type Ed2kHash = {
   hash: string;
   size: number;
   link: string;
-  timestamp: number;
+  createdAt: number;
 };
 
 export async function generateEd2kHash(file: string): Promise<Ed2kHash> {
@@ -209,9 +211,13 @@ export async function generateEd2kHash(file: string): Promise<Ed2kHash> {
     hash: fileHash,
     size: fileSize,
     link: `ed2k://|file|${path.basename(file)}|${fileSize}|${fileHash}|/`,
-    timestamp: 0,
+    createdAt: Date.now(),
   } as Ed2kHash;
 }
+
+type HashCache = {
+  [path: string]: Ed2kHash;
+};
 
 export type AnimeRenamerEpisode = {
   path: string;
@@ -222,10 +228,19 @@ export type AnimeRenamerEpisode = {
 export class AnimeRenamer {
   private format: string;
   private rehash: boolean;
+  private hashCacheAge: number;
+  private hashCacheFile: string;
+  private hashCache: HashCache;
 
   public constructor(config: Config, rehash: boolean = false, format?: string) {
     this.format = config.renamer.format;
+    this.hashCacheAge = config.cache.hash_age;
+    this.hashCacheFile = path.join(
+      config.cache.path,
+      `hashes.${machineIdSync()}.toml`,
+    );
     this.rehash = rehash;
+    this.hashCache = this.readCache();
     if (format) this.format = format;
   }
 
@@ -233,17 +248,74 @@ export class AnimeRenamer {
     return "AnimeRenamer";
   }
 
+  private readCache(): HashCache {
+    if (fs.existsSync(this.hashCacheFile)) {
+      let cachePurged = false;
+      const cache = toml.parse(
+        fs.readFileSync(this.hashCacheFile, "utf8"),
+      ) as HashCache;
+
+      for (const episodeFile of Object.keys(cache)) {
+        if (!fs.existsSync(episodeFile)) {
+          // purge file that no longer exist
+          delete cache[episodeFile];
+          cachePurged = true;
+        } else if (
+          (Date.now() - cache[episodeFile]?.createdAt) / 1000 / 3600 / 24 >
+          this.hashCacheAge
+        ) {
+          // purge file that are out of cache range
+          delete cache[episodeFile];
+          cachePurged = true;
+        }
+      }
+
+      // update cache if needed
+      if (cachePurged) this.writeCache(cache);
+
+      return cache;
+    }
+
+    return {} as HashCache;
+  }
+
+  private writeCache(cache?: HashCache): void {
+    // ensure cache dir exists
+    fs.mkdirSync(path.dirname(this.hashCacheFile), {
+      recursive: true,
+      mode: 0o750,
+    });
+
+    // write cache file
+    fs.writeFileSync(
+      this.hashCacheFile,
+      toml.stringify(cache ? cache : this.hashCache),
+      {
+        encoding: "utf8",
+        mode: 0o660,
+      },
+    );
+  }
+
   public async identify(
     animeEpisodeFile: string,
     hashOnly: boolean = false,
   ): Promise<AnimeRenamerEpisode> {
-    const episodeHash = await generateEd2kHash(animeEpisodeFile);
+    // calculate if rehash or cache is not fresh
+    if (this.rehash || this.hashCache[animeEpisodeFile] === undefined) {
+      // calculate hash
+      this.hashCache[animeEpisodeFile] =
+        await generateEd2kHash(animeEpisodeFile);
+
+      // write cache file
+      this.writeCache();
+    }
 
     // quick return if hashing only
     if (hashOnly)
       return {
         path: animeEpisodeFile,
-        ed2khash: episodeHash,
+        ed2khash: this.hashCache[animeEpisodeFile],
       } as AnimeRenamerEpisode;
 
     // read data from anidb api
@@ -251,7 +323,7 @@ export class AnimeRenamer {
 
     return {
       path: animeEpisodeFile,
-      ed2khash: episodeHash,
+      ed2khash: this.hashCache[animeEpisodeFile],
       data: episodeData,
     } as AnimeRenamerEpisode;
   }
