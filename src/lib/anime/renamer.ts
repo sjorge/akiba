@@ -237,7 +237,7 @@ export class AnimeRenamer {
     this.hashCacheAge = config.cache.hash_age;
     this.hashCacheFile = path.join(
       config.cache.path,
-      `hashes.${machineIdSync()}.toml`,
+      `${machineIdSync()}.hashes.toml`,
     );
     this.rehash = rehash;
     this.hashCache = this.readCache();

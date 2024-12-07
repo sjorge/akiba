@@ -43,7 +43,7 @@ export class AnimeMetadata {
     const showCacheFile: string = path.join(
       this.cachePath,
       "anidb",
-      `${id.anidb}.toml`,
+      `${id.anidb}.aid.toml`,
     );
 
     if (fs.existsSync(showCacheFile) && !refresh) {
