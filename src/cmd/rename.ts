@@ -12,11 +12,12 @@ import type { Config } from "lib/config";
 
 import { readConfig, validateConfig } from "lib/config";
 import { banner, log } from "lib/logger";
+import { ANIME_EPISODE_EXTENSIONS } from "lib/anime";
 import {
-  AnimeRenamer,
-  animeValidateString,
-  AnimeFormatStringException,
-} from "lib/anime/renamer";
+  animeStringValidate,
+  AnimeStringFormatException,
+} from "lib/anime/formatter";
+import { AnimeRenamer } from "lib/anime/renamer";
 
 const ignoreExt: string[] = [".nfo", ".jpg", ".png"];
 const ignoreFile: string[] = [".plexmatch", ".ignore"];
@@ -40,7 +41,8 @@ export async function renameAction(
   const animeRenamer: AnimeRenamer = new AnimeRenamer(
     config,
     opts.rehash as boolean,
-    opts.format as string,
+    opts.format ? `${opts.format}` : undefined,
+    opts.targetPath ? `${opts.targetPath}` : undefined,
   );
 
   // identify episode file(s)
@@ -52,34 +54,53 @@ export async function renameAction(
 
   const episodeFiles: string[] = [];
   if (fs.statSync(animePath).isDirectory()) {
-    for (const episodeFile of fs.readdirSync(animePath)) {
-      const episodePath = path.join(animePath, episodeFile);
+    function _episodeWalkTree(dirPath: string, episodes: string[]): void {
+      for (const episodeFile of fs.readdirSync(dirPath)) {
+        const episodePath = path.join(dirPath, episodeFile);
 
-      // ignore certain files and extension
-      if (ignoreFile.includes(episodeFile)) continue;
-      if (ignoreExt.includes(path.extname(episodeFile))) continue;
+        // ignore certain files and extension
+        if (ignoreFile.includes(episodeFile)) continue;
+        if (ignoreExt.includes(path.extname(episodeFile))) continue;
 
-      // ignore symlinks and directories
-      const episodeFsStats = fs.lstatSync(episodePath);
-      if (episodeFsStats.isSymbolicLink() || !episodeFsStats.isFile()) continue;
+        // ignore symlinks
+        const episodeFsStats = fs.lstatSync(episodePath);
+        if (episodeFsStats.isSymbolicLink()) continue;
 
-      episodeFiles.push(episodePath);
+        // recurse if directory
+        if (episodeFsStats.isDirectory()) {
+          _episodeWalkTree(episodePath, episodes);
+        }
+
+        // ignore unwanted extensions
+        if (!ANIME_EPISODE_EXTENSIONS.includes(path.extname(episodeFile)))
+          continue;
+
+        episodes.push(episodePath);
+      }
     }
+
+    _episodeWalkTree(animePath, episodeFiles);
   } else {
     episodeFiles.push(animePath);
   }
 
   const hashOnly = opts.printEd2klinks as boolean;
-  const targetPath = opts.targetPath
-    ? path.resolve(`${opts.targetPath}`)
-    : config.renamer.targetPath || path.resolve(".");
-  const format = opts.format ? `${opts.format}` : config.renamer.format;
+  const fresh = opts.fresh as boolean;
+  const force = opts.force as boolean;
+  const copy = opts.copy as boolean;
+  const symlink = opts.symlink as boolean;
 
   if (hashOnly) {
     log("Printing ed2khash links ...");
   } else {
-    log(`Target Path: ${targetPath}`);
-    log(`Format: ${format}`);
+    log(
+      `Target Path: ${
+        opts.targetPath
+          ? path.resolve(`${opts.targetPath}`)
+          : config.renamer.target_path || path.resolve(".")
+      }`,
+    );
+    log(`Format: ${opts.format ? `${opts.format}` : config.renamer.format}`);
     log("Renaming files ...");
   }
 
@@ -87,18 +108,21 @@ export async function renameAction(
     if (!hashOnly)
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 
-    const episode = await animeRenamer.identify(episodeFile, hashOnly);
+    // XXX: p-throttle to limit to 1x every 4 sec ?
+    const episode = await animeRenamer.identify(episodeFile, fresh, hashOnly);
 
     if (hashOnly) {
       console.log(episode.ed2khash.link); // use console.log for raw output
     } else if (episode.data) {
       log(`${path.basename(episodeFile)}: Identifying ...`, "done");
-      // XXX: animeRenamer.rename(episodeData, format, targetPath);
+      await animeRenamer.rename(episode, force, copy, symlink);
     } else {
       log(`${path.basename(episodeFile)}: Identifying ...`, "error");
       process.exitCode = 1;
     }
   }
+
+  await animeRenamer.destroy();
 }
 
 /*
@@ -120,16 +144,15 @@ export function addRenameCommand(program: Command): void {
     .addOption(
       new Option("--rehash", "force rehash of already hashed").default(false),
     )
+    .addOption(new Option("--fresh", "force retrieve metadata").default(false))
     .addOption(
-      new Option(
-        "--overwrite",
-        "overwrite if destination already exists",
-      ).default(false),
+      new Option("--force", "overwrite if destination exists").default(false),
     )
+    .addOption(new Option("--copy", "copy file instead of move").default(false))
     .addOption(
       new Option(
         "--symlink",
-        "create symlink from old filepath -> new filepath",
+        "create symlink at old source path to new destination path",
       ).default(false),
     )
     .addOption(
@@ -138,9 +161,9 @@ export function addRenameCommand(program: Command): void {
         "overwrite format for the desination filename",
       ).argParser((value: string) => {
         try {
-          animeValidateString(value, true);
+          animeStringValidate(value, true);
         } catch (_e: unknown) {
-          const e = _e as AnimeFormatStringException;
+          const e = _e as AnimeStringFormatException;
           throw new InvalidArgumentError(`${e.message}`);
         }
         return value;
