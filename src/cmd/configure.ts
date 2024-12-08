@@ -14,9 +14,9 @@ import {
   configFile,
 } from "lib/config";
 import {
-  animeValidateString,
-  AnimeFormatStringException,
-} from "lib/anime/renamer";
+  animeStringValidate,
+  AnimeStringFormatException,
+} from "lib/anime/formatter";
 import { banner, log } from "lib/logger";
 
 /*
@@ -142,9 +142,9 @@ export function addConfigureCommand(program: Command): void {
         "format for the desination filename",
       ).argParser((value: string) => {
         try {
-          animeValidateString(value, true);
+          animeStringValidate(value, true);
         } catch (_e: unknown) {
-          const e = _e as AnimeFormatStringException;
+          const e = _e as AnimeStringFormatException;
           throw new InvalidArgumentError(`${e.message}`);
         }
         return value;
