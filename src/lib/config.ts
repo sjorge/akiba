@@ -15,11 +15,11 @@ export type Config = {
       version?: number;
     };
     udp_client: {
-      host: string;
       name?: string;
       version?: number;
       username?: string;
       password?: string;
+      api_key?: string;
     };
     poster: boolean;
   };
@@ -37,7 +37,7 @@ export type Config = {
   };
   renamer: {
     format: string;
-    targetPath?: string;
+    target_path?: string;
   };
   overwrite_nfo: boolean;
 };
@@ -61,7 +61,7 @@ export function readConfig(): Config {
   let config: Config = {
     anidb: {
       http_client: { url: "http://api.anidb.net:9001/httpapi" },
-      udp_client: { host: "api.anidb.net:9000" },
+      udp_client: {},
       poster: false,
     },
     anilist: {},
@@ -145,13 +145,6 @@ export function validateConfig(
     }
   }
   if (command == "renamer") {
-    if (config.anidb.udp_client.host === undefined) {
-      if (verbose) {
-        banner();
-        log("Please configure the AniDB Host!", "error");
-      }
-      ret = false;
-    }
     if (
       config.anidb.udp_client.name === undefined ||
       config.anidb.udp_client.version === undefined
