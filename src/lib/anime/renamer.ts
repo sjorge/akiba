@@ -4,255 +4,108 @@
 import fs from "node:fs";
 import path from "node:path";
 import toml from "@iarna/toml";
-import { createMD4 } from "hash-wasm";
 import { machineIdSync } from "node-machine-id";
+import { AnidbUDPClient, AnidbError } from "anidb-udp-client";
+
+import type { AnidbCacheImplType } from "anidb-udp-client";
+
+import { generateEd2kHash } from "lib/ed2khash";
 
 import type { Config } from "lib/config";
-
-export class AnimeFormatStringException extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AnimeFormatStringException";
-  }
-}
-
-export type AnimeFormatStringData = {
-  fid: string;
-  aid: string;
-  eid: string;
-  gid: string;
-  lid: string;
-  status: string;
-  size: string;
-  ed2k: string;
-  md5: string;
-  sha1: string;
-  crc32: string;
-  lang_dub: string;
-  lang_sub: string;
-  quaility: string;
-  source: string;
-  audio_codec: string;
-  audio_bitrate: string;
-  video_codec: string;
-  video_bitrate: string;
-  resolution: string;
-  filetype: string;
-  length: string;
-  description: string;
-  group: string;
-  group_short: string;
-  episode: string;
-  episode_name: string;
-  episode_name_romaji: string;
-  episode_name_kanji: string;
-  episode_total: string;
-  episode_last: string;
-  anime_year: string;
-  anime_type: string;
-  anime_name_romaji: string;
-  anime_name_kanji: string;
-  anime_name_english: string;
-  anime_name_other: string;
-  anime_name_short: string;
-  anime_synonyms: string;
-  anime_category: string;
-  version: string;
-  censored: string;
-  orginal_name: string;
-};
-
-export function animeFormatString(
-  template: string,
-  data: AnimeFormatStringData,
-): string {
-  return template.replace(
-    /{(\w+)(?::(\w+))?}/g,
-    (match: string, tag: keyof AnimeFormatStringData, modifier?: string) => {
-      if (data[tag] === undefined)
-        throw new AnimeFormatStringException(
-          `The tag ${match} is not known, available tags: ${Object.keys(data).join(", ")}, modifier: upper, lower, lower_first, upper_first, number.`,
-        );
-      switch (modifier?.toLowerCase()) {
-        case "upper":
-          return data[tag].toUpperCase();
-        case "lower":
-          return data[tag].toLowerCase();
-        case "upper_first":
-          return data[tag].toUpperCase().substring(0, 1);
-        case "lower_first":
-          return data[tag].toLowerCase().substring(0, 1);
-        case "number": // can be used to turn 013 -> 13
-          return `${parseInt(data[tag], 10)}`;
-        default:
-          return data[tag];
-      }
-    },
-  );
-}
-
-export function animeValidateString(
-  template: string,
-  thowException: boolean = false,
-): boolean {
-  try {
-    animeFormatString(template, {
-      fid: "",
-      aid: "",
-      eid: "",
-      gid: "",
-      lid: "",
-      status: "",
-      size: "",
-      ed2k: "",
-      md5: "",
-      sha1: "",
-      crc32: "",
-      lang_dub: "",
-      lang_sub: "",
-      quaility: "",
-      source: "",
-      audio_codec: "",
-      audio_bitrate: "",
-      video_codec: "",
-      video_bitrate: "",
-      resolution: "",
-      filetype: "",
-      length: "",
-      description: "",
-      group: "",
-      group_short: "",
-      episode: "",
-      episode_name: "",
-      episode_name_romaji: "",
-      episode_name_kanji: "",
-      episode_total: "",
-      episode_last: "",
-      anime_year: "",
-      anime_type: "",
-      anime_name_romaji: "",
-      anime_name_kanji: "",
-      anime_name_english: "",
-      anime_name_other: "",
-      anime_name_short: "",
-      anime_synonyms: "",
-      anime_category: "",
-      version: "",
-      censored: "",
-      orginal_name: "",
-    });
-  } catch (_e: unknown) {
-    if (thowException) throw _e;
-    return false;
-  }
-
-  return true;
-}
-
-type Ed2kHash = {
-  hash: string;
-  size: number;
-  link: string;
-  createdAt: number;
-};
-
-export async function generateEd2kHash(file: string): Promise<Ed2kHash> {
-  // sanity check parameters
-  if (!fs.existsSync(file)) throw new Error(`${file} does not exist!`);
-  if (!fs.statSync(file).isFile()) throw new Error(`${file} must be a file!`);
-
-  async function hash(file: string): Promise<string> {
-    // https://wiki.anidb.net/Ed2k-hash
-    const md4 = await createMD4();
-    const blockSize = 9728000;
-    const blockHashes: string[] = [];
-    let buffer = Buffer.alloc(0);
-
-    const fileStream = fs.createReadStream(file);
-
-    for await (const chunk of fileStream) {
-      buffer = Buffer.concat([buffer, chunk]);
-
-      // Process full blocks
-      while (buffer.length >= blockSize) {
-        const block = buffer.subarray(0, blockSize);
-        buffer = buffer.subarray(blockSize);
-
-        md4.init();
-        md4.update(block);
-
-        blockHashes.push(md4.digest());
-      }
-    }
-
-    // Process remaining data (last chunk)
-    if (buffer.length > 0) {
-      md4.init();
-      md4.update(buffer);
-      blockHashes.push(md4.digest());
-    }
-
-    // return fast as we have a single block
-    if (blockHashes.length === 1) return blockHashes[0];
-
-    // compute hash of all block hashes if we have multiple
-    md4.init();
-    for (const hash of blockHashes) {
-      md4.update(Buffer.from(hash, "hex"));
-    }
-    return md4.digest();
-  }
-
-  // generate hash
-  const fileHash: string = await hash(file);
-  const fileSize: number = fs.statSync(file).size;
-
-  return {
-    hash: fileHash,
-    size: fileSize,
-    link: `ed2k://|file|${path.basename(file)}|${fileSize}|${fileHash}|/`,
-    createdAt: Date.now(),
-  } as Ed2kHash;
-}
+import type { Ed2kHash } from "lib/ed2khash";
+import {
+  animeStringFormat,
+  type AnimeStringFormatData,
+} from "lib/anime/formatter";
 
 type HashCache = {
   [path: string]: Ed2kHash;
 };
 
+// use a dummy cache as we will be caching a layer above AnidbUDPClient
+class AnidbCacheDummy implements AnidbCacheImplType {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public get<T>(key: string): Promise<T | undefined | null> {
+    return Promise.resolve(null);
+  }
+
+  public set(
+    key: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    value: // eslint-disable-line @typescript-eslint/no-unused-vars
+    string | number | Buffer | null | undefined | Record<string, unknown>,
+  ): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
 export type AnimeRenamerEpisode = {
   path: string;
   ed2khash: Ed2kHash;
-  data?: AnimeFormatStringData;
+  data?: AnimeStringFormatData;
 };
 
 export class AnimeRenamer {
+  private anidb: AnidbUDPClient;
+  private anidbUsername: string;
+  private anidbPassword: string;
+  private anidbApiKey: string | undefined;
+  private anidbConnected: boolean = false;
   private format: string;
+  private target: string;
   private rehash: boolean;
-  private hashCacheAge: number;
-  private hashCacheFile: string;
+  private cachePath: string;
+  private cacheAgeMetadata: number;
+  private cacheAgeHash: number;
   private hashCache: HashCache;
 
-  public constructor(config: Config, rehash: boolean = false, format?: string) {
-    this.format = config.renamer.format;
-    this.hashCacheAge = config.cache.hash_age;
-    this.hashCacheFile = path.join(
-      config.cache.path,
-      `${machineIdSync()}.hashes.toml`,
-    );
+  public constructor(
+    config: Config,
+    rehash: boolean = false,
+    format?: string,
+    target?: string,
+  ) {
+    if (
+      config.anidb.udp_client.name === undefined ||
+      config.anidb.udp_client.username === undefined ||
+      config.anidb.udp_client.password === undefined
+    )
+      throw new Error(
+        "AnimeRenamer requires at least config.anidb.upd_client to have name, username, and password set.",
+      );
+
+    this.anidb = new AnidbUDPClient(config.anidb.udp_client.name, {
+      cache: new AnidbCacheDummy(),
+    });
+    this.anidbUsername = config.anidb.udp_client.username;
+    this.anidbPassword = config.anidb.udp_client.password;
+    this.anidbApiKey = config.anidb.udp_client.api_key;
+
+    this.cachePath = config.cache.path;
+    this.cacheAgeMetadata = config.cache.mapping_age;
+    this.cacheAgeHash = config.cache.hash_age;
+
+    this.format = format ? format : config.renamer.format;
+    this.target = target
+      ? target
+      : config.renamer.target_path || path.resolve(".");
     this.rehash = rehash;
-    this.hashCache = this.readCache();
-    if (format) this.format = format;
+
+    this.hashCache = this.readHashCache();
   }
 
   public toString(): string {
     return "AnimeRenamer";
   }
 
-  private readCache(): HashCache {
-    if (fs.existsSync(this.hashCacheFile)) {
+  private readHashCache(): HashCache {
+    const hashCacheFile = path.join(
+      this.cachePath,
+      `${machineIdSync()}.hashes.toml`,
+    );
+    if (fs.existsSync(hashCacheFile)) {
       let cachePurged = false;
       const cache = toml.parse(
-        fs.readFileSync(this.hashCacheFile, "utf8"),
+        fs.readFileSync(hashCacheFile, "utf8"),
       ) as HashCache;
 
       for (const episodeFile of Object.keys(cache)) {
@@ -262,7 +115,7 @@ export class AnimeRenamer {
           cachePurged = true;
         } else if (
           (Date.now() - cache[episodeFile]?.createdAt) / 1000 / 3600 / 24 >
-          this.hashCacheAge
+          this.cacheAgeHash
         ) {
           // purge file that are out of cache range
           delete cache[episodeFile];
@@ -271,7 +124,7 @@ export class AnimeRenamer {
       }
 
       // update cache if needed
-      if (cachePurged) this.writeCache(cache);
+      if (cachePurged) this.writeHashCache(cache);
 
       return cache;
     }
@@ -279,16 +132,21 @@ export class AnimeRenamer {
     return {} as HashCache;
   }
 
-  private writeCache(cache?: HashCache): void {
+  private writeHashCache(cache?: HashCache): void {
+    const hashCacheFile = path.join(
+      this.cachePath,
+      `${machineIdSync()}.hashes.toml`,
+    );
+
     // ensure cache dir exists
-    fs.mkdirSync(path.dirname(this.hashCacheFile), {
+    fs.mkdirSync(this.cachePath, {
       recursive: true,
       mode: 0o750,
     });
 
     // write cache file
     fs.writeFileSync(
-      this.hashCacheFile,
+      hashCacheFile,
       toml.stringify(cache ? cache : this.hashCache),
       {
         encoding: "utf8",
@@ -297,8 +155,217 @@ export class AnimeRenamer {
     );
   }
 
+  private async readpisodeDataCache(
+    animeEpisodeHash: Ed2kHash,
+    refresh: boolean = false,
+  ): Promise<AnimeStringFormatData | undefined> {
+    const episodeCacheFile: string = path.join(
+      this.cachePath,
+      "anidb",
+      `${animeEpisodeHash.hash}.fid.toml`,
+    );
+
+    // read episodeData from cache
+    if (fs.existsSync(episodeCacheFile) && !refresh) {
+      const cacheStats = fs.statSync(episodeCacheFile);
+      if (
+        (new Date().getTime() - cacheStats.mtimeMs) / 1000 / 3600 / 24 <
+        this.cacheAgeMetadata
+      ) {
+        return toml.parse(
+          fs.readFileSync(episodeCacheFile, "utf8"),
+        ) as AnimeStringFormatData;
+      }
+    }
+
+    return undefined;
+  }
+
+  private async writeEpisodeDataCache(
+    animeEpisodeHash: Ed2kHash,
+    episodeData: AnimeStringFormatData | undefined,
+  ): Promise<void> {
+    const episodeCacheFile: string = path.join(
+      this.cachePath,
+      "anidb",
+      `${animeEpisodeHash.hash}.fid.toml`,
+    );
+
+    // ensure cache dir exists
+    fs.mkdirSync(path.dirname(episodeCacheFile), {
+      recursive: true,
+      mode: 0o750,
+    });
+
+    // write cache file
+    if (episodeData !== undefined)
+      fs.writeFileSync(episodeCacheFile, toml.stringify(episodeData), {
+        encoding: "utf8",
+        mode: 0o660,
+      });
+  }
+
+  private async disconnect(): Promise<void> {
+    if (!this.anidbConnected) return;
+
+    await this.anidb.disconnect();
+
+    this.anidbConnected = false;
+  }
+
+  private async connect(): Promise<void> {
+    if (this.anidbConnected) return;
+
+    try {
+      await this.anidb.connect(
+        this.anidbUsername,
+        this.anidbPassword,
+        this.anidbApiKey,
+      );
+      this.anidbConnected = true;
+    } catch (_e: unknown) {
+      const e = _e as AnidbError;
+      // XXX: handle frequent timeouts
+      throw e;
+    }
+  }
+
+  private async getAniDBFileByHash(
+    file: Ed2kHash,
+  ): Promise<AnimeStringFormatData | undefined> {
+    await this.connect();
+
+    try {
+      const data = await this.anidb.file_by_hash(file.hash, file.size, [
+        "aid",
+        "gid",
+        "eid",
+        "gid",
+        "mylist_id",
+        "state",
+        "size",
+        "ed2k",
+        "md5",
+        "sha1",
+        "crc32",
+        "dub_language",
+        "sub_language",
+        "quality",
+        "source",
+        "audio_codecs",
+        "audio_bitrates",
+        "video_codec",
+        "video_bitrate",
+        "video_resolution",
+        "file_extension",
+        "length_seconds",
+        "description",
+        "group_name",
+        "group_short_name",
+        "epno",
+        "ep_name",
+        "ep_romanji_name",
+        "ep_kanji_name",
+        "anime_total_episodes",
+        "highest_episode",
+        "year",
+        "type",
+        "romanji_name",
+        "kanji_name",
+        "english_name",
+        "other_name",
+        "short_name_list",
+        "synonym_list",
+        "category_list",
+        "anidb_filename",
+      ]);
+
+      // status_code parsing
+      //const STATUS_CRCOK = 0x01;
+      //const STATUS_CRCERR = 0x02;
+      const STATUS_ISV2 = 0x04;
+      const STATUS_ISV3 = 0x08;
+      const STATUS_ISV4 = 0x10;
+      const STATUS_ISV5 = 0x20;
+      const STATUS_UNC = 0x40;
+      const STATUS_CEN = 0x80;
+
+      const status_code = parseInt(`${data.state}`, 10);
+
+      let version = "";
+      if ((status_code & STATUS_ISV2) > 0) version = "v2";
+      if ((status_code & STATUS_ISV3) > 0) version = "v3";
+      if ((status_code & STATUS_ISV4) > 0) version = "v4";
+      if ((status_code & STATUS_ISV5) > 0) version = "v5";
+
+      let censored = "";
+      if ((status_code & STATUS_CEN) > 0) censored = "cen";
+      if ((status_code & STATUS_UNC) > 0) censored = "unc";
+
+      return {
+        fid: parseInt(`${data.fid}`, 10), // typedef as number but actually returns string
+        aid: data.aid,
+        eid: data.eid,
+        gid: data.gid,
+        lid: data.mylist_id,
+        status: parseInt(`${data.state}`, 10),
+        size: data.size,
+        ed2k: data.ed2k,
+        md5: data.md5,
+        sha1: data.sha1,
+        crc32: data.crc32,
+        lang_dub: data.dub_language,
+        lang_sub: data.sub_language,
+        quaility: data.quality,
+        source: data.source,
+        audio_codec: data.audio_codecs,
+        audio_bitrate: data.audio_bitrates,
+        video_codec: data.video_codec,
+        video_bitrate: data.video_bitrate,
+        resolution: data.video_resolution,
+        filetype: data.file_extension,
+        length: data.length_seconds,
+        description: data.description,
+        group: data.group_name,
+        group_short: data.group_short_name,
+        episode: data.epno,
+        episode_name: data.ep_name,
+        episode_name_romaji: data.ep_romanji_name,
+        episode_name_kanji: data.ep_kanji_name,
+        episode_total: data.anime_total_episodes,
+        episode_last: data.highest_episode,
+        anime_year: data.year.split("-").map((year: string) => parseInt(year)), // NOTE: can be YYYY-YYYY
+        anime_type: data.type,
+        anime_name_romaji: data.romanji_name,
+        anime_name_kanji: data.kanji_name,
+        anime_name_english: data.english_name,
+        anime_name_other: data.other_name.split("'"), // XXX: this is broken upstream https://github.com/tsukeero/anidb-udp-client/pull/21
+        anime_name_short: data.short_name_list,
+        anime_synonyms: data.synonym_list,
+        anime_category: data.category_list,
+        version: version,
+        censored: censored,
+        orginal_name: data.anidb_filename,
+      } as AnimeStringFormatData;
+    } catch (_e: unknown) {
+      const e = _e as AnidbError;
+      switch (e.code) {
+        case 320: // NO_SUCH_FILE
+          return undefined;
+        default:
+          await this.disconnect();
+          throw _e as Error;
+      }
+    }
+  }
+
+  public async destroy(): Promise<void> {
+    await this.disconnect();
+  }
+
   public async identify(
     animeEpisodeFile: string,
+    refresh: boolean = false,
     hashOnly: boolean = false,
   ): Promise<AnimeRenamerEpisode> {
     // calculate if rehash or cache is not fresh
@@ -308,7 +375,7 @@ export class AnimeRenamer {
         await generateEd2kHash(animeEpisodeFile);
 
       // write cache file
-      this.writeCache();
+      this.writeHashCache();
     }
 
     // quick return if hashing only
@@ -318,9 +385,25 @@ export class AnimeRenamer {
         ed2khash: this.hashCache[animeEpisodeFile],
       } as AnimeRenamerEpisode;
 
-    // read data from anidb api
-    const episodeData = undefined;
+    // read episodeData from cache
+    let episodeData = await this.readpisodeDataCache(
+      this.hashCache[animeEpisodeFile],
+      refresh,
+    );
 
+    // read episodeData from AniDB (if not cached)
+    if (episodeData === undefined) {
+      episodeData = await this.getAniDBFileByHash(
+        this.hashCache[animeEpisodeFile],
+      );
+
+      await this.writeEpisodeDataCache(
+        this.hashCache[animeEpisodeFile],
+        episodeData,
+      );
+    }
+
+    // return renamer data
     return {
       path: animeEpisodeFile,
       ed2khash: this.hashCache[animeEpisodeFile],
@@ -333,8 +416,15 @@ export class AnimeRenamer {
     overwrite: boolean = false,
     symlink: boolean = true,
   ): Promise<void> {
+    if (episode.data === undefined) return;
+    const sourcePath = episode.path;
+    const destinationPath = path.join(
+      this.target,
+      animeStringFormat(this.format, episode.data),
+    );
+
     console.log(
-      `TODO ${symlink ? "symlink" : "move"} ${episode.path} using metadata ${episode.data}, overwrite = ${overwrite}`,
+      `TODO ${symlink ? "symlink" : "move"} '${sourcePath}' to '${destinationPath}', overwrite = ${overwrite}`,
     );
   }
 }
