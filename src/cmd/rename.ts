@@ -13,10 +13,10 @@ import type { Config } from "lib/config";
 import { readConfig, validateConfig } from "lib/config";
 import { banner, log } from "lib/logger";
 import {
-  AnimeRenamer,
-  animeValidateString,
-  AnimeFormatStringException,
-} from "lib/anime/renamer";
+  animeStringValidate,
+  AnimeStringFormatException,
+} from "lib/anime/formatter";
+import { AnimeRenamer } from "lib/anime/renamer";
 
 const ignoreExt: string[] = [".nfo", ".jpg", ".png"];
 const ignoreFile: string[] = [".plexmatch", ".ignore"];
@@ -40,7 +40,8 @@ export async function renameAction(
   const animeRenamer: AnimeRenamer = new AnimeRenamer(
     config,
     opts.rehash as boolean,
-    opts.format as string,
+    opts.format ? `${opts.format}` : undefined,
+    opts.targetPath ? `${opts.targetPath}` : undefined,
   );
 
   // identify episode file(s)
@@ -70,16 +71,18 @@ export async function renameAction(
   }
 
   const hashOnly = opts.printEd2klinks as boolean;
-  const targetPath = opts.targetPath
-    ? path.resolve(`${opts.targetPath}`)
-    : config.renamer.targetPath || path.resolve(".");
-  const format = opts.format ? `${opts.format}` : config.renamer.format;
 
   if (hashOnly) {
     log("Printing ed2khash links ...");
   } else {
-    log(`Target Path: ${targetPath}`);
-    log(`Format: ${format}`);
+    log(
+      `Target Path: ${
+        opts.targetPath
+          ? path.resolve(`${opts.targetPath}`)
+          : config.renamer.target_path || path.resolve(".")
+      }`,
+    );
+    log(`Format: ${opts.format ? `${opts.format}` : config.renamer.format}`);
     log("Renaming files ...");
   }
 
@@ -87,6 +90,7 @@ export async function renameAction(
     if (!hashOnly)
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 
+    // XXX: p-throttle to limit to 1x every 4 sec ?
     const episode = await animeRenamer.identify(episodeFile, hashOnly);
 
     if (hashOnly) {
@@ -99,6 +103,8 @@ export async function renameAction(
       process.exitCode = 1;
     }
   }
+
+  await animeRenamer.destroy();
 }
 
 /*
@@ -138,9 +144,9 @@ export function addRenameCommand(program: Command): void {
         "overwrite format for the desination filename",
       ).argParser((value: string) => {
         try {
-          animeValidateString(value, true);
+          animeStringValidate(value, true);
         } catch (_e: unknown) {
-          const e = _e as AnimeFormatStringException;
+          const e = _e as AnimeStringFormatException;
           throw new InvalidArgumentError(`${e.message}`);
         }
         return value;
