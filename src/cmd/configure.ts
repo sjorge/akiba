@@ -44,6 +44,15 @@ async function configureAction(opts: OptionValues): Promise<void> {
   if (opts.anidbAuthPassword)
     config.anidb.udp_client.password = `${opts.anidbAuthPassword}`;
 
+  if (
+    typeof opts.anidbAuthApiKey == "boolean" &&
+    opts.anidbAuthApiKey === false
+  ) {
+    config.anidb.udp_client.api_key = undefined;
+  } else if (opts.anidbAuthApiKey) {
+    config.anidb.udp_client.api_key = `${opts.anidbAuthApiKey}`;
+  }
+
   if (typeof opts.anidbPoster == "boolean")
     config.anidb.poster = opts.anidbPoster;
 
@@ -55,9 +64,13 @@ async function configureAction(opts: OptionValues): Promise<void> {
 
   if (opts.renameFormat) config.renamer.format = `${opts.renameFormat}`;
   if (typeof opts.renameTargetPath == "boolean") {
-    config.renamer.targetPath = undefined;
-  } else {
-    config.renamer.targetPath = `${opts.renameTargetPath}`;
+    config.renamer.target_path = undefined;
+  } else if (opts.renameTargetPath) {
+    // ensure normalized to without ending /
+    config.renamer.target_path = path.join(
+      path.dirname(`${opts.renameTargetPath}`),
+      path.basename(`${opts.renameTargetPath}`),
+    );
   }
 
   if (!writeConfig(config)) {
@@ -110,6 +123,13 @@ export function addConfigureCommand(program: Command): void {
     .addOption(
       new Option("--anidb-auth-password <password>", "your anidb password"),
     )
+    .addOption(
+      new Option(
+        "--anidb-auth-api-key <key>",
+        "enable anidb encryption with your udp api key",
+      ),
+    )
+    .option("--no-anidb-auth-api-key", "disable anidb encryption")
     .option("--anidb-poster", "enable anidb poster fetching")
     .option("--no-anidb-poster", "disable anidb poster fetching")
     .option("--anilist-token <token>", "your anilist http client token")
