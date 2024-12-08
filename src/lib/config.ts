@@ -74,7 +74,7 @@ export function readConfig(): Config {
     },
     renamer: {
       format:
-        "{anime_name_romaji}/{anime_name_romaji} - {episode} - {episode_name} ({crc32}).{filetype}",
+        "{anime_name_romaji} - {episode} - {episode_name} ({crc32}).{filetype}",
     },
     overwrite_nfo: false,
   };
