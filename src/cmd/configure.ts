@@ -95,7 +95,7 @@ export function addConfigureCommand(program: Command): void {
     .addOption(
       new Option(
         "--anidb-http-client <http_client>",
-        "your anidb udp client (format: <name>/<version>)",
+        "your anidb http client (format: <name>/<version>)",
       ).argParser(anidbClientValidation),
     )
     .addOption(
