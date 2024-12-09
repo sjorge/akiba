@@ -62,7 +62,7 @@ export class AnimeResolver {
   private fuzzyMatchThreshhold: number = 3;
 
   public constructor(config: Config) {
-    this.titleCacheAge = config.cache.mapping_age;
+    this.titleCacheAge = config.cache.title_age;
     this.titleFile = path.join(config.cache.path, "titles.map.toml");
   }
 
