@@ -1,48 +1,49 @@
 {
-  "name": "akiba",
-  "version": "1.0.0",
-  "author": "sjorge",
-  "module": "src/cli.ts",
-  "devDependencies": {
-    "@eslint/core": "^0.9.0",
-    "@eslint/js": "^9.16.0",
-    "@types/braces": "^3.0.4",
-    "@types/bun": "latest",
-    "@types/eslint-config-prettier": "^6.11.3",
-    "@types/fast-levenshtein": "^0.0.4",
-    "@types/node": "^22.10.1",
-    "eslint": "^9.16.0",
-    "eslint-config-prettier": "^9.1.0",
-    "typescript-eslint": "^8.16.0"
-  },
-  "peerDependencies": {
-    "typescript": "^5.7.2"
-  },
-  "description": "Utility to export stub-NFO's for use with jellyfin.",
-  "license": "MIT",
-  "scripts": {
-    "start": "bun run src/cli.ts",
-    "compile": "mkdir -p bin/ ; bun build src/cli.ts --compile --outfile bin/akiba",
-    "lint": "bun x --bun eslint --max-warnings=0",
-    "check": "bun x --bun tsc --noEmit --pretty",
-    "pretty:check": "bun x --bun prettier --check src/",
-    "pretty:write": "bun x --bun prettier --write src/"
-  },
-  "type": "module",
-  "dependencies": {
-    "@commander-js/extra-typings": "^12.1.0",
-    "@iarna/toml": "^2.2.5",
-    "anidb-udp-client": "^1.1.1",
-    "anidbjs": "^2.4.4",
-    "anilist-node": "^1.14.1",
-    "axios": "^1.7.8",
-    "braces": "^3.0.3",
-    "commander": "^12.1.0",
-    "deepmerge-ts": "^7.1.3",
-    "fast-levenshtein": "^3.0.0",
-    "hash-wasm": "^4.12.0",
-    "moviedb-promise": "^4.0.7",
-    "node-machine-id": "^1.1.12",
-    "xmlbuilder2": "^3.1.1"
-  }
+    "name": "akiba",
+    "version": "1.0.0",
+    "author": "sjorge",
+    "module": "src/cli.ts",
+    "devDependencies": {
+        "@eslint/core": "^0.9.0",
+        "@eslint/js": "^9.16.0",
+        "@types/braces": "^3.0.4",
+        "@types/bun": "latest",
+        "@types/eslint-config-prettier": "^6.11.3",
+        "@types/fast-levenshtein": "^0.0.4",
+        "@types/node": "^22.10.1",
+        "eslint": "^9.16.0",
+        "eslint-config-prettier": "^9.1.0",
+        "typescript-eslint": "^8.16.0"
+    },
+    "peerDependencies": {
+        "typescript": "^5.7.2"
+    },
+    "description": "Utility to export stub-NFO's for use with jellyfin.",
+    "license": "MIT",
+    "scripts": {
+        "start": "bun run src/cli.ts",
+        "compile": "mkdir -p bin/ ; bun build src/cli.ts --compile --outfile bin/akiba",
+        "lint": "bun x --bun eslint --max-warnings=0",
+        "check": "bun x --bun tsc --noEmit --pretty",
+        "pretty:check": "bun x --bun prettier --check src/",
+        "pretty:write": "bun x --bun prettier --write src/",
+        "postinstall": "sed -i '/console.log(filePath);/d' node_modules/anidb-udp-client/dist/utils/udp_utils/index.js; bun compile"
+    },
+    "type": "module",
+    "dependencies": {
+        "@commander-js/extra-typings": "^12.1.0",
+        "@iarna/toml": "^2.2.5",
+        "anidb-udp-client": "^1.1.1",
+        "anidbjs": "^2.4.4",
+        "anilist-node": "^1.14.1",
+        "axios": "^1.7.8",
+        "braces": "^3.0.3",
+        "commander": "^12.1.0",
+        "deepmerge-ts": "^7.1.3",
+        "fast-levenshtein": "^3.0.0",
+        "hash-wasm": "^4.12.0",
+        "moviedb-promise": "^4.0.7",
+        "node-machine-id": "^1.1.12",
+        "xmlbuilder2": "^3.1.1"
+    }
 }
