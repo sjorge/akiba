@@ -417,7 +417,8 @@ export class AnimeRenamer {
     episode: AnimeRenamerEpisode,
     overwrite: boolean = false,
     copy: boolean = false,
-    symlink: boolean = true,
+    symlink: boolean = false,
+    dryRun: boolean = false,
   ): Promise<AnimeRenamerEpisode> {
     // missing metadata
     if (episode.data === undefined) return episode;
@@ -445,14 +446,14 @@ export class AnimeRenamer {
 
     // rename episode
     if (copy) {
-      // NOTE: fs.copyFileSync overwrites by defualt
-      fs.copyFileSync(sourcePath, destinationPath);
+      // NOTE: fs.copyFileSync overwrites by default
+      if (!dryRun) fs.copyFileSync(sourcePath, destinationPath);
 
       episode.destination_path = destinationPath;
       episode.action = "copy";
     } else {
       try {
-        fs.renameSync(sourcePath, destinationPath);
+        if (!dryRun) fs.renameSync(sourcePath, destinationPath);
       } catch (_e: unknown) {
         const e = _e as Error;
         if (e.message != "Cross-device link") throw e;
@@ -466,15 +467,17 @@ export class AnimeRenamer {
       episode.action = "move";
 
       if (symlink) {
-        fs.symlinkSync(destinationPath, sourcePath);
+        if (!dryRun) fs.symlinkSync(destinationPath, sourcePath);
         episode.action = "symlink";
       }
     }
 
     // update hashes
-    this.hashCache[episode.destination_path] = this.hashCache[episode.path];
-    delete this.hashCache[episode.path];
-    this.writeHashCache();
+    if (!dryRun) {
+      this.hashCache[episode.destination_path] = this.hashCache[episode.path];
+      delete this.hashCache[episode.path];
+      this.writeHashCache();
+    }
 
     return episode;
   }

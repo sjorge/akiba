@@ -89,6 +89,7 @@ export async function renameAction(
   const force = opts.force as boolean;
   const copy = opts.copy as boolean;
   const symlink = opts.symlink as boolean;
+  const dryRun = opts.dryRun as boolean;
 
   if (hashOnly) {
     log("Printing ed2khash links ...");
@@ -121,6 +122,7 @@ export async function renameAction(
         force,
         copy,
         symlink,
+        dryRun,
       );
       if (renamerResult.destination_path !== undefined) {
         let message = "";
@@ -180,6 +182,9 @@ export function addRenameCommand(program: Command): void {
         .conflicts("copy"),
     )
     .addOption(
+      new Option("--dry-run", "do not rename the episodes").default(false),
+    )
+    .addOption(
       new Option(
         "--format <format>",
         "overwrite format for the desination filename",
@@ -209,7 +214,16 @@ export function addRenameCommand(program: Command): void {
       ),
     )
     .addOption(
-      new Option("--print-ed2klinks", "only print ed2klinks").default(false),
+      new Option("--print-ed2klinks", "only print ed2klinks")
+        .default(false)
+        .conflicts([
+          "force",
+          "copy",
+          "symlink",
+          "format",
+          "targetPath",
+          "dryRun",
+        ]),
     )
     .action(renameAction);
 }
