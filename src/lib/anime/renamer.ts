@@ -42,6 +42,8 @@ export type AnimeRenamerEpisode = {
   path: string;
   ed2khash: Ed2kHash;
   data?: AnimeStringFormatData;
+  action?: "move" | "copy" | "symlink" | "uptodate";
+  destination_path?: string;
 };
 
 export class AnimeRenamer {
@@ -414,18 +416,67 @@ export class AnimeRenamer {
   public async rename(
     episode: AnimeRenamerEpisode,
     overwrite: boolean = false,
+    copy: boolean = false,
     symlink: boolean = true,
-  ): Promise<void> {
-    if (episode.data === undefined) return;
+  ): Promise<AnimeRenamerEpisode> {
+    // missing metadata
+    if (episode.data === undefined) return episode;
+
     const sourcePath = episode.path;
     const destinationPath = path.join(
       this.target,
       animeStringFormat(this.format, episode.data),
     );
 
-    console.log(
-      `TODO ${symlink ? "symlink" : "move"} '${sourcePath}' to '${destinationPath}', overwrite = ${overwrite}`,
-    );
+    // file already correct path
+    if (sourcePath == destinationPath) {
+      episode.destination_path = destinationPath;
+      episode.action = "uptodate";
+      return episode;
+    }
+
+    // abort if destinationPath exists and !overwrite
+    if (fs.existsSync(destinationPath) && !overwrite) return episode;
+
+    // create parent path
+    fs.mkdirSync(path.dirname(destinationPath), {
+      recursive: true,
+    });
+
+    // rename episode
+    if (copy) {
+      // NOTE: fs.copyFileSync overwrites by defualt
+      fs.copyFileSync(sourcePath, destinationPath);
+
+      episode.destination_path = destinationPath;
+      episode.action = "copy";
+    } else {
+      try {
+        fs.renameSync(sourcePath, destinationPath);
+      } catch (_e: unknown) {
+        const e = _e as Error;
+        if (e.message != "Cross-device link") throw e;
+
+        // fallback to copy for filesystem boundries
+        fs.copyFileSync(sourcePath, destinationPath);
+        fs.unlinkSync(sourcePath);
+      }
+
+      episode.destination_path = destinationPath;
+      episode.action = "move";
+
+      if (symlink) {
+        fs.symlinkSync(destinationPath, sourcePath);
+        episode.action = "symlink";
+      }
+    }
+
+    // update hashes
+    this.hashCache[episode.destination_path] = this.hashCache[episode.path];
+    delete this.hashCache[episode.path];
+    this.writeHashCache();
+
+    return episode;
   }
 }
 
