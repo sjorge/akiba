@@ -19,8 +19,8 @@ import {
 } from "lib/anime/formatter";
 import { AnimeRenamer } from "lib/anime/renamer";
 
-const ignoreExt: string[] = [".nfo", ".jpg", ".png"];
-const ignoreFile: string[] = [".plexmatch", ".ignore"];
+const IGNORE_EXTENSIONS: string[] = [".nfo", ".jpg", ".png"];
+const IGNORE_FILES: string[] = [".plexmatch", ".ignore"];
 
 /*
  * Entrypoint `rename` action for commander-js
@@ -59,8 +59,8 @@ export async function renameAction(
         const episodePath = path.join(dirPath, episodeFile);
 
         // ignore certain files and extension
-        if (ignoreFile.includes(episodeFile)) continue;
-        if (ignoreExt.includes(path.extname(episodeFile))) continue;
+        if (IGNORE_FILES.includes(episodeFile)) continue;
+        if (IGNORE_EXTENSIONS.includes(path.extname(episodeFile))) continue;
 
         // ignore symlinks
         const episodeFsStats = fs.lstatSync(episodePath);
@@ -115,7 +115,29 @@ export async function renameAction(
       console.log(episode.ed2khash.link); // use console.log for raw output
     } else if (episode.data) {
       log(`${path.basename(episodeFile)}: Identifying ...`, "done");
-      await animeRenamer.rename(episode, force, copy, symlink);
+      log(`${path.basename(episodeFile)}: Renaming ...`, "step");
+      const renamerResult = await animeRenamer.rename(
+        episode,
+        force,
+        copy,
+        symlink,
+      );
+      if (renamerResult.destination_path !== undefined) {
+        let message = "";
+        if (renamerResult.action == "uptodate") {
+          message = "Already correctly named.";
+        } else {
+          const renamerAction =
+            renamerResult.action == "copy" ? "Copied" : "Moved";
+          const renamerSymlinked =
+            renamerResult.action == "symlink" ? " and symlinked" : "";
+          message = `${renamerAction} to ${renamerResult.destination_path}${renamerSymlinked}!`;
+        }
+
+        log(`${path.basename(episodeFile)}: ${message}`, "done");
+      } else {
+        log(`${path.basename(episodeFile)}: Renaming ...`, "error");
+      }
     } else {
       log(`${path.basename(episodeFile)}: Identifying ...`, "error");
       process.exitCode = 1;
@@ -153,7 +175,9 @@ export function addRenameCommand(program: Command): void {
       new Option(
         "--symlink",
         "create symlink at old source path to new destination path",
-      ).default(false),
+      )
+        .default(false)
+        .conflicts("copy"),
     )
     .addOption(
       new Option(
