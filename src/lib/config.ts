@@ -33,6 +33,7 @@ export type Config = {
     path: string;
     metadata_age: number;
     mapping_age: number;
+    title_age: number;
     hash_age: number;
   };
   renamer: {
@@ -70,6 +71,7 @@ export function readConfig(): Config {
       path: cacheDir,
       metadata_age: 90,
       mapping_age: 7,
+      title_age: 3,
       hash_age: 30,
     },
     renamer: {
