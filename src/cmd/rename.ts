@@ -36,8 +36,16 @@ export async function renameAction(
     return;
   }
 
+  // parse cli flags
+  const hashOnly = opts.printEd2klinks as boolean;
+  const fresh = opts.fresh as boolean;
+  const force = opts.force as boolean;
+  const copy = opts.copy as boolean;
+  const symlink = opts.symlink as boolean;
+  const dryRun = opts.dryRun as boolean;
+
   // initialize renamer
-  banner();
+  if (!hashOnly) banner();
   const animeRenamer: AnimeRenamer = new AnimeRenamer(
     config,
     opts.rehash as boolean,
@@ -84,15 +92,7 @@ export async function renameAction(
     episodeFiles.push(animePath);
   }
 
-  const hashOnly = opts.printEd2klinks as boolean;
-  const fresh = opts.fresh as boolean;
-  const force = opts.force as boolean;
-  const copy = opts.copy as boolean;
-  const symlink = opts.symlink as boolean;
-
-  if (hashOnly) {
-    log("Printing ed2khash links ...");
-  } else {
+  if (!hashOnly) {
     log(
       `Target Path: ${
         opts.targetPath
@@ -101,7 +101,11 @@ export async function renameAction(
       }`,
     );
     log(`Format: ${opts.format ? `${opts.format}` : config.renamer.format}`);
-    log("Renaming files ...");
+    if (episodeFiles.length > 0) {
+      log("Renaming files ...");
+    } else {
+      log("Nothing to rename ...", "done");
+    }
   }
 
   for (const episodeFile of episodeFiles) {
@@ -121,6 +125,7 @@ export async function renameAction(
         force,
         copy,
         symlink,
+        dryRun,
       );
       if (renamerResult.destination_path !== undefined) {
         let message = "";
@@ -180,6 +185,9 @@ export function addRenameCommand(program: Command): void {
         .conflicts("copy"),
     )
     .addOption(
+      new Option("--dry-run", "do not rename the episodes").default(false),
+    )
+    .addOption(
       new Option(
         "--format <format>",
         "overwrite format for the desination filename",
@@ -209,7 +217,16 @@ export function addRenameCommand(program: Command): void {
       ),
     )
     .addOption(
-      new Option("--print-ed2klinks", "only print ed2klinks").default(false),
+      new Option("--print-ed2klinks", "only print ed2klinks")
+        .default(false)
+        .conflicts([
+          "force",
+          "copy",
+          "symlink",
+          "format",
+          "targetPath",
+          "dryRun",
+        ]),
     )
     .action(renameAction);
 }
