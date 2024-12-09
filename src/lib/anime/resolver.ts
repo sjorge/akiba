@@ -13,6 +13,8 @@ import levenshtein from "fast-levenshtein";
 import type { Config } from "lib/config";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
 
+import { ANIME_EPISODE_EXTENSIONS } from "lib/anime";
+
 const TitlesDBUrl = "https://anidb.net/api/anime-titles.xml.gz";
 
 type TitlesDBTitleObject = {
@@ -52,7 +54,6 @@ const episodeMultiTitleRegEx = new RegExp(
   /\s-\s(?<episode>(S|C|T|P|O)?\d+-(S|C|T|P|O)?\d+)\s-\s(?<title>.+)\.\w{3}/,
 );
 const episodeCrc32RegEx = new RegExp(/.+(?<crc32>\([A-Za-z0-9]{8}\))/);
-const episodeExtensions: string[] = [".mkv", ".mp4", ".ogm", ".avi"];
 
 export class AnimeResolver {
   private titleFile: string;
@@ -191,7 +192,8 @@ export class AnimeResolver {
 
     // read anime show path
     for (const episodePath of fs.readdirSync(animePath)) {
-      if (!episodeExtensions.includes(path.extname(episodePath))) continue;
+      if (!ANIME_EPISODE_EXTENSIONS.includes(path.extname(episodePath)))
+        continue;
 
       const singleEpisode = episodeSingleTitleRegEx.exec(episodePath)?.groups;
       const multiEpisode = episodeMultiTitleRegEx.exec(episodePath)?.groups;
