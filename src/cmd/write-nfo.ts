@@ -133,22 +133,22 @@ export async function nfoAction(
   }
 
   // lookup metadata
-  log(`${title}: Retrieving metadata ...`, "step");
+  log(`${title}: Retrieving metadata ...`, "step", true, id);
   const metadata = await animeMetadata.get(id, opts.fresh as boolean);
-  log(`${title}: Retrieving metadata ...`, "done");
+  log(`${title}: Retrieving metadata ...`, "done", true, id);
 
   // write tvshow.nfo
-  log(`${title}: Writing show NFO ...`, "step");
+  log(`${title}: Writing show NFO ...`, "step", true, id);
   const animeShowNfo = new AnimeShowNfo(id, metadata, animePath);
   if (
     !animeShowNfo.isValid() ||
     !(await animeShowNfo.write(opts.force as boolean, config.anidb.poster))
   ) {
-    log(`${title}: Failed to write show NFO ...`, "error");
+    log(`${title}: Failed to write show NFO ...`, "error", true, id);
     process.exitCode = 1;
     return;
   }
-  log(`${title}: Writing show NFO ...`, "done");
+  log(`${title}: Writing show NFO ...`, "done", true, id);
 
   // write episode.nfo
   for (const episode of animeResolver.episodes(animePath)) {
@@ -156,25 +156,21 @@ export async function nfoAction(
     if (episode.episodeEnd != episode.episodeStart)
       titleSuffix = `${titleSuffix}-${episode.episodeEnd}`;
 
-    log(
-      `${title}//${titleSuffix}: Writing episode NFO (${episode.title}) ...`,
-      "step",
-    );
+    log(`${title}: Writing episode ${titleSuffix} NFO ...`, "step", true, id);
     const animeEpisodeNfo = new AnimeEpisodeNfo(id, episode, metadata);
     if (
       !animeEpisodeNfo.isValid() ||
       !(await animeEpisodeNfo.write(opts.force as boolean))
     ) {
       log(
-        `${title}//${titleSuffix}: Failed to write episode NFO (${episode.title}) ...`,
+        `${title}: Failed to write episode ${titleSuffix} NFO ...`,
         "error",
+        true,
+        id,
       );
       process.exitCode = 1;
     } else {
-      log(
-        `${title}//${titleSuffix}: Writing episode NFO (${episode.title}) ...`,
-        "done",
-      );
+      log(`${title}: Writing episode ${titleSuffix} NFO ...`, "done", true, id);
     }
   }
 }
