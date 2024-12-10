@@ -88,7 +88,6 @@ export class AnimeRenamer {
     this.anidbUsername = config.anidb.udp_client.username;
     this.anidbPassword = config.anidb.udp_client.password;
     this.anidbApiKey = config.anidb.udp_client.api_key;
-    this.anidb.setMaxListeners(64); // anidb-udp-client goes over the default 10 limit
 
     this.cachePath = config.cache.path;
     this.cacheAgeMetadata = config.cache.mapping_age;
