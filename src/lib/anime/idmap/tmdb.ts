@@ -19,9 +19,6 @@ export class AnimeIdmapTmdbException extends Error {
 export class AnimeIdmapTmdb {
   private tmdb: MovieDb;
   private resolver: AnimeResolver;
-  // NOTE: we should be rather strict here to avoid incorrect matches
-  private fuzzyMatchThreshholdEng: number = 3;
-  private fuzzyMatchThreshholdJpn: number = 2;
 
   public constructor(config: Config, resolver?: AnimeResolver) {
     if (config.tmdb.api_key === undefined)
@@ -84,11 +81,11 @@ export class AnimeIdmapTmdb {
                 if (distance == 0) {
                   exact_match = media.id;
                 } else if (
-                  distance <=
-                  (t.language == "ja"
-                    ? this.fuzzyMatchThreshholdJpn
-                    : this.fuzzyMatchThreshholdEng)
+                  distance == 1 &&
+                  ["x-jat", "ja"].includes(t.language) &&
+                  t.title.endsWith(".")
                 ) {
+                  // special take into account x-jat ending .
                   if (best_match == undefined || best_match_score > distance) {
                     best_match = media.id;
                     best_match_score = distance;
