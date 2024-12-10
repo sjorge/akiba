@@ -18,6 +18,13 @@ import {
   type AnimeStringFormatData,
 } from "lib/anime/formatter";
 
+export type AniDBMylistState =
+  | "internal_storage"
+  | "external_storage"
+  | "remote_storage"
+  | "deleted"
+  | "unknown";
+
 type HashCache = {
   [path: string]: Ed2kHash;
 };
@@ -75,13 +82,13 @@ export class AnimeRenamer {
         "AnimeRenamer requires at least config.anidb.upd_client to have name, username, and password set.",
       );
 
-    process.setMaxListeners(64); // anidb-udp-client goes over the default 10 limit
     this.anidb = new AnidbUDPClient(config.anidb.udp_client.name, {
       cache: new AnidbCacheDummy(),
     });
     this.anidbUsername = config.anidb.udp_client.username;
     this.anidbPassword = config.anidb.udp_client.password;
     this.anidbApiKey = config.anidb.udp_client.api_key;
+    this.anidb.setMaxListeners(64); // anidb-udp-client goes over the default 10 limit
 
     this.cachePath = config.cache.path;
     this.cacheAgeMetadata = config.cache.mapping_age;
@@ -231,7 +238,7 @@ export class AnimeRenamer {
       this.anidbConnected = true;
     } catch (_e: unknown) {
       const e = _e as AnidbError;
-      // XXX: handle frequent timeouts
+      await this.anidb.disconnect();
       throw e;
     }
   }
@@ -489,6 +496,55 @@ export class AnimeRenamer {
     }
 
     return episode;
+  }
+
+  public async setMylistState(
+    episode: AnimeRenamerEpisode,
+    mylistState: AniDBMylistState,
+  ): Promise<boolean> {
+    await this.connect();
+
+    let needUpdate;
+    let mylistEdit;
+
+    try {
+      const list_data = await this.anidb.mylist_by_file_hash(
+        episode.ed2khash.hash,
+        episode.ed2khash.size,
+      );
+
+      needUpdate = list_data.state != mylistState;
+      mylistEdit = true;
+    } catch (_e: unknown) {
+      const e = _e as AnidbError;
+      switch (e.code) {
+        case 321: // NO_SUCH_ENTRY
+          needUpdate = true;
+          mylistEdit = false;
+          break;
+        default:
+          await this.disconnect();
+          throw _e as Error;
+      }
+    }
+
+    if (needUpdate) {
+      const update_data = await this.anidb.mylist_add_by_file(
+        { ed2k: episode.ed2khash.hash, size: episode.ed2khash.size },
+        {
+          edit: mylistEdit,
+          state: mylistState,
+        },
+      );
+
+      if (
+        update_data?.code != "MYLIST_ENTRY_ADDED" &&
+        update_data?.code != "MYLIST_ENTRY_EDITED"
+      )
+        return false;
+    }
+
+    return true;
   }
 }
 
