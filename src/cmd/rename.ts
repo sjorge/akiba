@@ -108,7 +108,7 @@ export async function renameAction(
     }
   }
 
-  for (const episodeFile of episodeFiles) {
+  for (const episodeFile of episodeFiles.sort()) {
     if (!hashOnly)
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 

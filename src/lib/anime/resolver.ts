@@ -191,7 +191,7 @@ export class AnimeResolver {
     if (!fs.statSync(animePath).isDirectory()) return [];
 
     // read anime show path
-    for (const episodePath of fs.readdirSync(animePath)) {
+    for (const episodePath of fs.readdirSync(animePath).sort()) {
       if (!ANIME_EPISODE_EXTENSIONS.includes(path.extname(episodePath)))
         continue;
 
@@ -229,6 +229,7 @@ export class AnimeResolver {
         title: title.trim(),
       } as EpisodeFile);
     }
+
     return episodes;
   }
 }
