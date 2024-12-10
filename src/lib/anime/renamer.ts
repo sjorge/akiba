@@ -489,7 +489,7 @@ export class AnimeRenamer {
       const ed2hash = this.hashCache[episode.path];
       ed2hash.link = `ed2k://|file|${path.basename(episode.destination_path)}|${ed2hash.size}|${ed2hash.hash}|/`;
 
-      delete this.hashCache[episode.path];
+      if (!copy) delete this.hashCache[episode.path];
       this.hashCache[episode.destination_path] = ed2hash;
       this.writeHashCache();
     }
