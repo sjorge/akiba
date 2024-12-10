@@ -4,16 +4,17 @@
     "author": "sjorge",
     "module": "src/cli.ts",
     "devDependencies": {
-        "@eslint/core": "^0.9.0",
+        "@eslint/core": "^0.9.1",
         "@eslint/js": "^9.16.0",
         "@types/braces": "^3.0.4",
         "@types/bun": "latest",
         "@types/eslint-config-prettier": "^6.11.3",
         "@types/fast-levenshtein": "^0.0.4",
+        "@types/he": "^1.2.3",
         "@types/node": "^22.10.1",
         "eslint": "^9.16.0",
         "eslint-config-prettier": "^9.1.0",
-        "typescript-eslint": "^8.16.0"
+        "typescript-eslint": "^8.18.0"
     },
     "peerDependencies": {
         "typescript": "^5.7.2"
@@ -36,12 +37,13 @@
         "anidb-udp-client": "^1.1.1",
         "anidbjs": "^2.4.4",
         "anilist-node": "^1.14.1",
-        "axios": "^1.7.8",
+        "axios": "^1.7.9",
         "braces": "^3.0.3",
         "commander": "^12.1.0",
         "deepmerge-ts": "^7.1.3",
         "fast-levenshtein": "^3.0.0",
         "hash-wasm": "^4.12.0",
+        "he": "^1.2.0",
         "moviedb-promise": "^4.0.7",
         "node-machine-id": "^1.1.12",
         "xmlbuilder2": "^3.1.1"
