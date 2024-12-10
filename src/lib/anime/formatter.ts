@@ -1,6 +1,7 @@
 /*
  * Internal helper types and function for formatting strings
  */
+import path from "node:path";
 
 const animeStringValidatorData = JSON.parse(
   '{"fid":0,"aid":0,"eid":0,"gid":0,"lid":0,"status":0,"size":0,"ed2k":"","md5":"","sha1":"","crc32":"","lang_dub":"","lang_sub":"","quaility":"","source":"","audio_codec":"","audio_bitrate":"","video_codec":"","video_bitrate":"","resolution":"","filetype":"","length":0,"description":"","group":"","group_short":"","episode":"","episode_name":"","episode_name_romaji":"","episode_name_kanji":"","episode_total":0,"episode_last":0,"anime_year":[],"anime_type":"","anime_name_romaji":"","anime_name_kanji":"","anime_name_english":"","anime_name_other":[],"anime_name_short":[],"anime_synonyms":[],"anime_category":[],"version":"","censored":"","orginal_name":""}',
@@ -63,36 +64,64 @@ export function animeStringFormat(
   template: string,
   data: AnimeStringFormatData,
 ): string {
-  return template.replace(
-    /{(\w+)(?::(\w+))?}/g,
-    (match: string, tag: keyof AnimeStringFormatData, modifier?: string) => {
-      if (data[tag] === undefined)
-        throw new AnimeStringFormatException(
-          `The tag ${match} is not known, available tags: ${Object.keys(data).join(", ")}, modifier: upper, lower, lower_first, upper_first, number, or array index as an int.`,
-        );
-      switch (modifier?.toLowerCase()) {
-        case "upper":
-          return `${data[tag]}`.toUpperCase();
-        case "lower":
-          return `${data[tag]}`.toLowerCase();
-        case "upper_first":
-          return `${data[tag]}`.toUpperCase().substring(0, 1);
-        case "lower_first":
-          return `${data[tag]}`.toLowerCase().substring(0, 1);
-        case "number": // can be used to turn 013 -> 13
-          if (typeof data[tag] === "string")
-            return `${parseInt(data[tag], 10)}`;
-          return `${data[tag]}`;
-        default:
-          if (Array.isArray(data[tag])) {
-            const index = modifier ? parseInt(modifier, 10) : 0;
-            if (!isNaN(index) && index < data[tag].length) {
-              return data[tag][index];
-            }
-          }
-          return `${data[tag]}`;
+  function sanitizeTag(template: string): string {
+    return template
+      .replace(/[`]/g, "'")
+      .replace(/\//g, "")
+      .replace(/[^a-zA-Z0-9-&!`',.~+\- ()]/g, "_")
+      .replace(/[_]+/g, "_")
+      .replace(/^_/g, "")
+      .replace(/_\./g, ".")
+      .replace(/_-\./g, "-")
+      .replace(/_\s/g, " ")
+      .replace(/\s_/g, " ");
+  }
+
+  // NOTE: mostly because CIFS has issues with directories ending in "."
+  function sanitizeDirComponents(template: string): string {
+    const templateNew: string[] = [];
+    for (let chunk of template.split(path.sep)) {
+      if (chunk.endsWith(".") && chunk !== path.basename(template)) {
+        chunk = chunk.substring(0, chunk.length - 1);
       }
-    },
+      templateNew.push(chunk);
+    }
+    return templateNew.join(path.sep);
+  }
+
+  // apply tempalte
+  return sanitizeDirComponents(
+    template.replace(
+      /{(\w+)(?::(\w+))?}/g,
+      (match: string, tag: keyof AnimeStringFormatData, modifier?: string) => {
+        if (data[tag] === undefined)
+          throw new AnimeStringFormatException(
+            `The tag ${match} is not known, available tags: ${Object.keys(data).join(", ")}, modifier: upper, lower, lower_first, upper_first, number, or array index as an int.`,
+          );
+        switch (modifier?.toLowerCase()) {
+          case "upper":
+            return sanitizeTag(`${data[tag]}`.toUpperCase());
+          case "lower":
+            return sanitizeTag(`${data[tag]}`.toLowerCase());
+          case "upper_first":
+            return `${data[tag]}`.toUpperCase().substring(0, 1);
+          case "lower_first":
+            return `${data[tag]}`.toLowerCase().substring(0, 1);
+          case "number": // can be used to turn 013 -> 13
+            if (typeof data[tag] === "string")
+              return `${parseInt(data[tag], 10)}`;
+            return sanitizeTag(`${data[tag]}`);
+          default:
+            if (Array.isArray(data[tag])) {
+              const index = modifier ? parseInt(modifier, 10) : 0;
+              if (!isNaN(index) && index < data[tag].length) {
+                return sanitizeTag(data[tag][index]);
+              }
+            }
+            return sanitizeTag(`${data[tag]}`);
+        }
+      },
+    ),
   );
 }
 
