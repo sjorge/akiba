@@ -7,8 +7,10 @@ import {
 } from "@commander-js/extra-typings";
 import fs from "node:fs";
 import path from "node:path";
+import { AnidbError } from "anidb-udp-client";
 
 import type { Config } from "lib/config";
+import type { AniDBMylistState, AnimeRenamerEpisode } from "lib/anime/renamer";
 
 import { readConfig, validateConfig } from "lib/config";
 import { banner, log } from "lib/logger";
@@ -42,6 +44,7 @@ export async function renameAction(
   const force = opts.force as boolean;
   const copy = opts.copy as boolean;
   const symlink = opts.symlink as boolean;
+  const mylistState = opts.mylistState;
   const dryRun = opts.dryRun as boolean;
 
   // initialize renamer
@@ -113,12 +116,53 @@ export async function renameAction(
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 
     // XXX: p-throttle to limit to 1x every 4 sec ?
-    const episode = await animeRenamer.identify(episodeFile, fresh, hashOnly);
+    let episode: AnimeRenamerEpisode;
+
+    try {
+      episode = await animeRenamer.identify(episodeFile, fresh, hashOnly);
+    } catch (_e: unknown) {
+      const e = _e as AnidbError;
+      log(`${path.basename(episodeFile)}: Identifying ...`, "error");
+      log(`AniDB UDP Client: ${e.message}, try again in 30 mintues.`, "error");
+      process.exitCode = 1;
+      return;
+    }
 
     if (hashOnly) {
       console.log(episode.ed2khash.link); // use console.log for raw output
     } else if (episode.data) {
       log(`${path.basename(episodeFile)}: Identifying ...`, "done");
+
+      if (mylistState !== undefined && !dryRun) {
+        log(
+          `${path.basename(episodeFile)}: Updating mylist state to ${mylistState} ...`,
+          "step",
+        );
+        try {
+          log(
+            `${path.basename(episodeFile)}: Updating mylist state to ${mylistState} ...`,
+            (await animeRenamer.setMylistState(
+              episode,
+              mylistState as AniDBMylistState,
+            ))
+              ? "done"
+              : "error",
+          );
+        } catch (_e: unknown) {
+          const e = _e as AnidbError;
+          log(
+            `${path.basename(episodeFile)}: Updating mylist state to ${mylistState} ...`,
+            "error",
+          );
+          log(
+            `AniDB UDP Client: ${e.message}, try again in 30 mintues.`,
+            "error",
+          );
+          process.exitCode = 1;
+          return;
+        }
+      }
+
       log(`${path.basename(episodeFile)}: Renaming ...`, "step");
       const renamerResult = await animeRenamer.rename(
         episode,
@@ -185,6 +229,12 @@ export function addRenameCommand(program: Command): void {
         .conflicts("copy"),
     )
     .addOption(
+      new Option(
+        "--mylist-state <state>",
+        "update mylist state for identified files",
+      ).choices(["internal_storage", "external_storage", "remote_storage"]),
+    )
+    .addOption(
       new Option("--dry-run", "do not rename the episodes").default(false),
     )
     .addOption(
@@ -223,6 +273,7 @@ export function addRenameCommand(program: Command): void {
           "force",
           "copy",
           "symlink",
+          "mylistState",
           "format",
           "targetPath",
           "dryRun",
