@@ -75,6 +75,7 @@ export class AnimeRenamer {
         "AnimeRenamer requires at least config.anidb.upd_client to have name, username, and password set.",
       );
 
+    process.setMaxListeners(64); // anidb-udp-client goes over the default 10 limit
     this.anidb = new AnidbUDPClient(config.anidb.udp_client.name, {
       cache: new AnidbCacheDummy(),
     });
@@ -93,6 +94,9 @@ export class AnimeRenamer {
     this.rehash = rehash;
 
     this.hashCache = this.readHashCache();
+
+    // anidb-udp-client goes over the default 10 limit
+    this.anidb.setMaxListeners(0);
   }
 
   public toString(): string {
