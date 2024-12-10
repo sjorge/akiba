@@ -6,6 +6,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import toml from "@iarna/toml";
 import axios from "axios";
+import he from "he";
 import { convert as convertXmlDoc } from "xmlbuilder2";
 import { deepmergeInto } from "deepmerge-ts";
 import levenshtein from "fast-levenshtein";
@@ -92,9 +93,11 @@ export class AnimeResolver {
     const titles = await axios.get(TitlesDBUrl, {
       responseType: "arraybuffer",
     });
-    const titlesXml = convertXmlDoc(zlib.gunzipSync(titles.data).toString(), {
-      format: "object",
-    }) as unknown as TitlesDBObject;
+    const titlesXml = JSON.parse(
+      convertXmlDoc(zlib.gunzipSync(titles.data).toString(), {
+        format: "json",
+      }),
+    ) as TitlesDBObject;
 
     for (const entry of titlesXml.animetitles.anime) {
       const aid: number = entry["@aid"];
@@ -108,7 +111,7 @@ export class AnimeResolver {
 
       for (const entryTitle of entry.title as TitlesDBTitleObject[]) {
         const title: AnimeTitleVariant = {
-          title: entryTitle["#"],
+          title: he.decode(entryTitle["#"]),
           type: entryTitle["@type"],
           language: entryTitle["@xml:lang"],
         };
