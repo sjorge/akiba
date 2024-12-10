@@ -19,6 +19,9 @@ export class AnimeIdmapTmdbException extends Error {
 export class AnimeIdmapTmdb {
   private tmdb: MovieDb;
   private resolver: AnimeResolver;
+  // NOTE: we should be rather strict here to avoid incorrect matches
+  private fuzzyMatchThreshholdEng: number = 3;
+  private fuzzyMatchThreshholdJpn: number = 2;
 
   public constructor(config: Config, resolver?: AnimeResolver) {
     if (config.tmdb.api_key === undefined)
@@ -41,7 +44,7 @@ export class AnimeIdmapTmdb {
     const mainTitle: AnimeTitleVariant[] = this.resolver
       .title(id)
       .filter((t: AnimeTitleVariant) => {
-        if (t.type == "official" && t.language == "ja") {
+        if (t.type == "official" && ["ja", "en"].includes(t.language)) {
           return t;
         } else if (t.type == "main" && t.language == "x-jat") {
           return t;
@@ -49,6 +52,8 @@ export class AnimeIdmapTmdb {
       });
 
     let exact_match: number | undefined;
+    let best_match: number | undefined;
+    let best_match_score: number = 0;
 
     for (const tv of mainTitle) {
       const t = tv as AnimeTitleVariant;
@@ -76,9 +81,18 @@ export class AnimeIdmapTmdb {
                   { useCollator: true },
                 );
 
-                // distance greater than 0 causes to many incorrect matches, only do exact match
                 if (distance == 0) {
                   exact_match = media.id;
+                } else if (
+                  distance <=
+                  (t.language == "ja"
+                    ? this.fuzzyMatchThreshholdJpn
+                    : this.fuzzyMatchThreshholdEng)
+                ) {
+                  if (best_match == undefined || best_match_score > distance) {
+                    best_match = media.id;
+                    best_match_score = distance;
+                  }
                 }
               }
             }
@@ -89,6 +103,9 @@ export class AnimeIdmapTmdb {
 
     if (exact_match !== undefined) {
       id.tmdb = exact_match;
+      id.tmdbSeason = 1;
+    } else if (best_match !== undefined) {
+      id.tmdb = best_match;
       id.tmdbSeason = 1;
     }
   }
