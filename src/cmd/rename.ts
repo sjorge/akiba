@@ -7,6 +7,7 @@ import {
 } from "@commander-js/extra-typings";
 import fs from "node:fs";
 import path from "node:path";
+import naturalCompare from "natural-compare";
 import { AnidbError } from "anidb-udp-client";
 
 import type { Config } from "lib/config";
@@ -111,7 +112,7 @@ export async function renameAction(
     }
   }
 
-  for (const episodeFile of episodeFiles.sort()) {
+  for (const episodeFile of episodeFiles.sort(naturalCompare)) {
     if (!hashOnly)
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 

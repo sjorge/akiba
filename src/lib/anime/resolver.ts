@@ -10,6 +10,7 @@ import he from "he";
 import { convert as convertXmlDoc } from "xmlbuilder2";
 import { deepmergeInto } from "deepmerge-ts";
 import levenshtein from "fast-levenshtein";
+import naturalCompare from "natural-compare";
 
 import type { Config } from "lib/config";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
@@ -194,7 +195,7 @@ export class AnimeResolver {
     if (!fs.statSync(animePath).isDirectory()) return [];
 
     // read anime show path
-    for (const episodePath of fs.readdirSync(animePath).sort()) {
+    for (const episodePath of fs.readdirSync(animePath).sort(naturalCompare)) {
       if (!ANIME_EPISODE_EXTENSIONS.includes(path.extname(episodePath)))
         continue;
 
