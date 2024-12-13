@@ -102,6 +102,7 @@ export class AnimeRenamer {
     this.hashCache = this.readHashCache();
 
     // anidb-udp-client goes over the default 10 limit
+    process.setMaxListeners(0);
     this.anidb.setMaxListeners(0);
   }
 
