@@ -381,8 +381,19 @@ export class AnimeRenamer {
     refresh: boolean = false,
     hashOnly: boolean = false,
   ): Promise<AnimeRenamerEpisode> {
+    // sanity check parameters
+    if (!fs.existsSync(animeEpisodeFile))
+      throw new Error(`${animeEpisodeFile} does not exist!`);
+    if (!fs.statSync(animeEpisodeFile).isFile())
+      throw new Error(`${animeEpisodeFile} must be a file!`);
+
     // calculate if rehash or cache is not fresh
-    if (this.rehash || this.hashCache[animeEpisodeFile] === undefined) {
+    if (
+      this.rehash ||
+      this.hashCache[animeEpisodeFile] === undefined ||
+      this.hashCache[animeEpisodeFile].size !=
+        fs.statSync(animeEpisodeFile).size
+    ) {
       // calculate hash
       this.hashCache[animeEpisodeFile] =
         await generateEd2kHash(animeEpisodeFile);
