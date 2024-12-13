@@ -2,7 +2,6 @@
  * Internal helpers for dealing with anilist api
  */
 import { MovieDb } from "moviedb-promise";
-import levenshtein from "fast-levenshtein";
 
 import type { Config } from "lib/config";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
@@ -50,7 +49,6 @@ export class AnimeIdmapTmdb {
 
     let exact_match: number | undefined;
     let best_match: number | undefined;
-    let best_match_score: number = 0;
 
     for (const tv of mainTitle) {
       const t = tv as AnimeTitleVariant;
@@ -71,26 +69,22 @@ export class AnimeIdmapTmdb {
             if (mt !== undefined && mt !== null) {
               if (mt.toLowerCase() == t.title.toLowerCase()) {
                 exact_match = media.id;
-              } else {
-                const distance: number = levenshtein.get(
-                  t.title.toLowerCase(),
-                  mt.toLowerCase(),
-                  { useCollator: true },
-                );
+              } else if (
+                t.language == "ja" &&
+                media.original_language == "ja"
+              ) {
+                let tmdbNormalizedTitle = t.title.toLowerCase();
+                tmdbNormalizedTitle = tmdbNormalizedTitle.replace("&", "and");
+                tmdbNormalizedTitle = tmdbNormalizedTitle
+                  .replace("[", "【")
+                  .replace("]", "】");
+                tmdbNormalizedTitle = tmdbNormalizedTitle.replace(/\.$/, "。");
+                tmdbNormalizedTitle = tmdbNormalizedTitle.replace(",", "、");
 
-                if (distance == 0) {
-                  exact_match = media.id;
-                } else if (
-                  distance == 1 &&
-                  ["x-jat", "ja"].includes(t.language) &&
-                  t.title.endsWith(".")
-                ) {
-                  // special take into account x-jat ending .
-                  if (best_match == undefined || best_match_score > distance) {
+                if (mt.toLowerCase() == tmdbNormalizedTitle)
+                  if (best_match == undefined) {
                     best_match = media.id;
-                    best_match_score = distance;
                   }
-                }
               }
             }
           }
