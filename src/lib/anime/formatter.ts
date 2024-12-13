@@ -109,8 +109,10 @@ export function animeStringFormat(
           case "lower_first":
             return `${data[tag]}`.toLowerCase().substring(0, 1);
           case "number": // can be used to turn 013 -> 13
-            if (typeof data[tag] === "string")
-              return `${parseInt(data[tag], 10)}`;
+            if (typeof data[tag] === "string") {
+              const tagNumber = `${parseInt(data[tag], 10)}`;
+              if (!isNaN(tagNumber)) return tagNumber;
+            }
             return sanitizeTag(`${data[tag]}`);
           default:
             if (Array.isArray(data[tag])) {
