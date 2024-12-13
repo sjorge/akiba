@@ -33,12 +33,12 @@ export class AnimeShowNfo extends TvShowNfo {
     this.tvShow.uniqueId = [
       { type: "anidb", id: id.anidb, default: true } as UniqueId,
     ];
-    if (id.anilist)
+    if (id.anilist && id.anilist != -1)
       this.tvShow.uniqueId.push({
         type: "anilist",
         id: id.anilist,
       } as UniqueId);
-    if (id.tmdb)
+    if (id.tmdb && id.tmdb != -1)
       this.tvShow.uniqueId.push({
         type: "tmdb",
         id: id.tmdb,
