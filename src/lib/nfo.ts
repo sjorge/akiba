@@ -63,8 +63,11 @@ function ensureJellyfinIdType(type: string): string {
     case "tmdb":
       jellyfinCompatibleType = "Tmdb";
       break;
+    default:
+      jellyfinCompatibleType = type;
+      break;
   }
-  return type;
+  return jellyfinCompatibleType;
 }
 
 export class TvShowNfo {
