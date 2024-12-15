@@ -60,9 +60,6 @@ function ensureJellyfinIdType(type: string): string {
     case "anilist":
       jellyfinCompatibleType = "AniList";
       break;
-    case "tmdb":
-      jellyfinCompatibleType = "Tmdb";
-      break;
     default:
       jellyfinCompatibleType = type;
       break;
