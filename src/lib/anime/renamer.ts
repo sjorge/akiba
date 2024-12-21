@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import toml from "@iarna/toml";
+import Bun from "bun";
 import { machineIdSync } from "node-machine-id";
 import { AnidbUDPClient, AnidbError } from "anidb-udp-client";
 
@@ -168,7 +169,7 @@ export class AnimeRenamer {
     );
   }
 
-  private async readpisodeDataCache(
+  private async readEpisodeDataCache(
     animeEpisodeHash: Ed2kHash,
     refresh: boolean = false,
   ): Promise<AnimeStringFormatData | undefined> {
@@ -410,7 +411,7 @@ export class AnimeRenamer {
       } as AnimeRenamerEpisode;
 
     // read episodeData from cache
-    let episodeData = await this.readpisodeDataCache(
+    let episodeData = await this.readEpisodeDataCache(
       this.hashCache[animeEpisodeFile],
       refresh,
     );
@@ -420,6 +421,26 @@ export class AnimeRenamer {
       episodeData = await this.getAniDBFileByHash(
         this.hashCache[animeEpisodeFile],
       );
+
+      if (
+        episodeData?.crc32 == "" ||
+        episodeData?.sha1 == "" ||
+        episodeData?.md5 == ""
+      ) {
+        const data = fs.readFileSync(animeEpisodeFile, { encoding: "binary" });
+
+        episodeData.crc32 = Bun.hash
+          .crc32(Buffer.from(data, "binary"))
+          .toString(16);
+
+        episodeData.md5 = new Bun.CryptoHasher("md5")
+          .update(data, "binary")
+          .digest("hex");
+
+        episodeData.sha1 = new Bun.CryptoHasher("sha1")
+          .update(data, "binary")
+          .digest("hex");
+      }
 
       await this.writeEpisodeDataCache(
         this.hashCache[animeEpisodeFile],
