@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import toml from "@iarna/toml";
 import Bun from "bun";
+import { EventEmitter } from "events";
 import { machineIdSync } from "node-machine-id";
 import { AnidbUDPClient, AnidbError } from "anidb-udp-client";
 
@@ -103,8 +104,8 @@ export class AnimeRenamer {
     this.hashCache = this.readHashCache();
 
     // anidb-udp-client goes over the default 10 limit
-    process.setMaxListeners(0);
-    this.anidb.setMaxListeners(0);
+    EventEmitter.defaultMaxListeners = 64;
+    this.anidb.setMaxListeners(64);
   }
 
   public toString(): string {
