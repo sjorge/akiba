@@ -21,6 +21,12 @@ import { AnimeMetadata } from "lib/anime/metadata";
 import { AnimeShowNfo, AnimeEpisodeNfo } from "lib/anime/nfo";
 import { banner, log } from "lib/logger";
 
+function handleError(msg: string, _e: unknown): void {
+  const e = _e as Error;
+  log(`${msg}: ${e.message}`, "error");
+  process.exitCode = 1;
+}
+
 /*
  * Entrypoint `write-nfo` action for commander-js
  */
@@ -58,24 +64,41 @@ export async function nfoAction(
   try {
     animeResolver = new AnimeResolver(config);
     await animeResolver.refresh();
+  } catch (_e: unknown) {
+    handleError("Failed to initialize anime resolver", _e);
+    return;
+  }
 
+  try {
     animeIdmapLocal = new AnimeIdmapLocal(config);
     await animeIdmapLocal.refresh();
+  } catch (_e: unknown) {
+    handleError("Failed to initialize anime local mapper", _e);
+    return;
+  }
 
+  try {
     animeIdmapList = new AnimeIdmapList(config);
     await animeIdmapList.refresh();
+  } catch (_e: unknown) {
+    handleError("Failed to initialize anime list mapper", _e);
+    return;
+  }
 
+  try {
     if (config.anilist.token)
       animeIdmapAnilist = new AnimeIdmapAnilist(config, animeResolver);
     if (config.tmdb.api_key)
       animeIdmapTmdb = new AnimeIdmapTmdb(config, animeResolver);
+  } catch (_e: unknown) {
+    handleError("Failed to initialize anime remote mappers", _e);
+    return;
+  }
 
+  try {
     animeMetadata = new AnimeMetadata(config);
   } catch (_e: unknown) {
-    const e = _e as Error;
-    log(`Failed to initialize anime mappers!`, "error");
-    log(e.message, "error");
-    process.exitCode = 1;
+    handleError("Failed to initialize anime metadata retriever", _e);
     return;
   }
 
