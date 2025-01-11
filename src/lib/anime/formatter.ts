@@ -110,8 +110,16 @@ export function animeStringFormat(
             return `${data[tag]}`.toLowerCase().substring(0, 1);
           case "number": // can be used to turn 013 -> 13
             if (typeof data[tag] === "string") {
-              const tagNumber = parseInt(data[tag], 10);
-              if (!isNaN(tagNumber)) return `${tagNumber}`;
+              if (data[tag].split("-").length == 2) {
+                const tagMultiNumber = data[tag].split("-");
+                const tagStartNumber = parseInt(tagMultiNumber[0], 10);
+                const tagStopNumber = parseInt(tagMultiNumber[1], 10);
+                if (!isNaN(tagStartNumber) && !isNaN(tagStopNumber))
+                  return `${tagStartNumber}-${tagStopNumber}`;
+              } else {
+                const tagNumber = parseInt(data[tag], 10);
+                if (!isNaN(tagNumber)) return `${tagNumber}`;
+              }
             }
             return sanitizeTag(`${data[tag]}`);
           default:
