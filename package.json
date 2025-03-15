@@ -29,7 +29,7 @@
         "check": "bun x --bun tsc --noEmit --pretty",
         "pretty:check": "bun x --bun prettier --check src/",
         "pretty:write": "bun x --bun prettier --write src/",
-        "postinstall": "sed -i.bak '/console.log(filePath);/d' node_modules/anidb-udp-client/dist/utils/udp_utils/index.js; bun compile"
+        "postinstall": "sed -i.bak '/console.log(filePath);/d' node_modules/anidb-udp-client/dist/utils/udp_utils/index.js; sed -i.bak2 -e 's#const filePath =.*compressedResult.*#const filePath = \"/tmp/anidb-udp-client-compressedResult\";#g' node_modules/anidb-udp-client/dist/utils/udp_utils/index.js ; bun compile"
     },
     "type": "module",
     "dependencies": {
