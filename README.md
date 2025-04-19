@@ -9,8 +9,8 @@ For best results enable only the **AniDB** provider in the library in Jellyfin a
 An attempt will be made to also map **Anilist** IDs, these are generally also present. Additionally **tmdb** tv IDs are also mapped but only for the first season.
 
 ## Known Issues
-- [#13197](https://github.com/jellyfin/jellyfin/issues/13197) Jellyfin 10.10.x does not seem to parse episode NFOs season
 - [#11575](https://github.com/jellyfin/jellyfin/issues/11575) Jellyfin 10.9.x+ needs to have `Display specials within seasons they aired in` checked in order to work around a bug with virtual seasons.
+- [#13197](https://github.com/jellyfin/jellyfin/issues/13197) ~~Jellyfin 10.10.x does not seem to parse episode NFOs season~~ Fixed in 10.10.7
 
 ## Install
 
