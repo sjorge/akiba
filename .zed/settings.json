@@ -3,11 +3,41 @@
     "calt": false
   },
   "hard_tabs": false,
-  "tab_size": 4,
+  "tab_size": 2,
   "languages": {
     "TypeScript": {
       "format_on_save": "on",
-      "tab_size": 2,
+      "language_servers": ["typescript-language-server", "!vtsls", "..."],
+      "formatter": {
+        "external": {
+          "command": "bun",
+          "arguments": [
+            "x",
+            "--bun",
+            "prettier",
+            "--stdin-filepath",
+            "{buffer_path}"
+          ]
+        }
+      }
+    },
+    "TSX": {
+      "language_servers": ["typescript-language-server", "!vtsls", "..."],
+      "formatter": {
+        "external": {
+          "command": "bun",
+          "arguments": [
+            "x",
+            "--bun",
+            "prettier",
+            "--stdin-filepath",
+            "{buffer_path}"
+          ]
+        }
+      }
+    },
+    "JavaScript": {
+      "language_servers": ["typescript-language-server", "!vtsls", "..."],
       "formatter": {
         "external": {
           "command": "bun",
