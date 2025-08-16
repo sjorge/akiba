@@ -15,7 +15,8 @@
         "@types/node": "^22.10.1",
         "eslint": "^9.16.0",
         "eslint-config-prettier": "^9.1.0",
-        "typescript-eslint": "^8.18.0"
+        "typescript-eslint": "^8.18.0",
+        "typescript-language-server": "^4.4.0"
     },
     "peerDependencies": {
         "typescript": "^5.7.2"
