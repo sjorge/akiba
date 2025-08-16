@@ -21,7 +21,7 @@ Install dependancies and compile static binary
 > I'm not proud of this hack, but until there is a new release, this is the only way to consistantly fix it.
 
 ```bash
-bun install
+bun install --no-save --production
 ```
 
 Copy `bin/akiba` to somewhere in your path.
