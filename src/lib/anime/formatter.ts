@@ -105,9 +105,9 @@ export function animeStringFormat(
           case "lower":
             return sanitizeTag(`${data[tag]}`.toLowerCase());
           case "upper_first":
-            return `${data[tag]}`.toUpperCase().substring(0, 1);
+            return sanitizeTag(`${data[tag]}`.toUpperCase().substring(0, 1));
           case "lower_first":
-            return `${data[tag]}`.toLowerCase().substring(0, 1);
+            return sanitizeTag(`${data[tag]}`.toLowerCase().substring(0, 1));
           case "number": // can be used to turn 013 -> 13
             if (typeof data[tag] === "string") {
               if (data[tag].split("-").length == 2) {

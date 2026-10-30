@@ -462,10 +462,26 @@ export class AnimeRenamer {
     if (episode.data === undefined) return episode;
 
     const sourcePath = episode.path;
+    const targetPath = path.resolve(this.target);
     const destinationPath = path.join(
       this.target,
       animeStringFormat(this.format, episode.data),
     );
+
+    // NOTE: the target may be relative (e.g. ../renamed), but the formatted
+    // name must stay inside it, tag values come from remote data
+    const relativePath = path.relative(
+      targetPath,
+      path.resolve(destinationPath),
+    );
+    if (
+      relativePath === "" ||
+      relativePath.split(path.sep)[0] === ".." ||
+      path.isAbsolute(relativePath)
+    )
+      throw new Error(
+        `Refusing to rename ${sourcePath}: ${destinationPath} is outside of ${targetPath}!`,
+      );
 
     // file already correct path
     if (sourcePath == destinationPath) {
@@ -481,6 +497,7 @@ export class AnimeRenamer {
     if (!dryRun)
       fs.mkdirSync(path.dirname(destinationPath), {
         recursive: true,
+        mode: 0o750,
       });
 
     // rename episode
@@ -494,12 +511,14 @@ export class AnimeRenamer {
       try {
         if (!dryRun) fs.renameSync(sourcePath, destinationPath);
       } catch (_e: unknown) {
-        const e = _e as Error;
-        if (e.message != "Cross-device link") throw e;
+        const e = _e as NodeJS.ErrnoException;
+        if (e.code !== "EXDEV") throw e;
 
         // fallback to copy for filesystem boundries
-        fs.copyFileSync(sourcePath, destinationPath);
-        fs.unlinkSync(sourcePath);
+        if (!dryRun) {
+          fs.copyFileSync(sourcePath, destinationPath);
+          fs.unlinkSync(sourcePath);
+        }
       }
 
       episode.destination_path = destinationPath;
