@@ -180,12 +180,7 @@ export type AnimeResult = {
 };
 
 export type AnimeStatus =
-  | "ongoing"
-  | "stalled"
-  | "complete"
-  | "dropped"
-  | "finished"
-  | "specials_only";
+  "ongoing" | "stalled" | "complete" | "dropped" | "finished" | "specials_only";
 
 export type CalendarEntry = {
   aid: number;
@@ -314,9 +309,7 @@ export type MylistByAnimeResult =
     };
 
 export type MylistFileSpec =
-  | { fid: number }
-  | { ed2k: string; size: number }
-  | { lid: number };
+  { fid: number } | { ed2k: string; size: number } | { lid: number };
 
 export type MylistAddOptions = {
   // true to edit an existing entry; unsupplied values keep their original
