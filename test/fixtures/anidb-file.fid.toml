@@ -1,0 +1,46 @@
+fid = 1_628_637
+aid = 10_914
+eid = 163_945
+gid = 13_184
+lid = 212_018_403
+status = 4_101
+size = 447_945_964
+ed2k = "7dafd31d6d028e981d09301c5fbfc654"
+md5 = "82100105622e04d5b0a5fa1fe82734f4"
+sha1 = "37641c2055d9373c5a74eb45ca968676e5f22ac8"
+crc32 = "438a7b93"
+lang_dub = "japanese"
+lang_sub = "english"
+quaility = "very high"
+source = "Blu-ray"
+audio_codec = "(HE-)AAC"
+audio_bitrate = "271"
+video_codec = "H264/AVC"
+video_bitrate = "1960"
+resolution = "1280x720"
+filetype = "mkv"
+length = 1_598
+description = ""
+group = "BlurayDesuYo"
+group_short = "BlurayDesuYo"
+episode = "1"
+episode_name = "OAD"
+episode_name_romaji = ""
+episode_name_kanji = ""
+episode_total = 1
+episode_last = 1
+anime_year = [ 2_015, 2_015 ]
+anime_type = "OVA"
+anime_name_romaji = "Trinity Seven: Nanatsu no Taizai to Nana Madoushi"
+anime_name_kanji = "トリニティセブン 七つの大罪と七魔道士"
+anime_name_english = ""
+anime_name_other = [ "トリニティセブン 七つの大罪と七魔道士", "TRINITY SEVEN 七人魔法使 OAD" ]
+anime_name_short = [ "T7 ova" ]
+anime_synonyms = [
+  "Trinity Seven: The Seven Deadly Sins and the Seven Mages",
+  "Trinity Seven and Special Lesson"
+]
+anime_category = [ ]
+version = "v2"
+censored = ""
+orginal_name = "Trinity Seven: Nanatsu no Taizai to Nana Madoushi - 1 - OAD - [BlurayDesuYo](438a7b93).mkv"
