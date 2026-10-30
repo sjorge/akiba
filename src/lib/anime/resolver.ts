@@ -16,6 +16,7 @@ import type { Config } from "lib/config";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
 
 import { ANIME_EPISODE_EXTENSIONS } from "lib/anime";
+import { writeFileAtomic } from "lib/fs";
 
 const TitlesDBUrl = "https://anidb.net/api/anime-titles.xml.gz";
 
@@ -133,9 +134,7 @@ export class AnimeResolver {
     });
 
     // write cache
-    fs.writeFileSync(this.titleFile, toml.stringify(this.titleCache), {
-      encoding: "utf8",
-    });
+    writeFileAtomic(this.titleFile, toml.stringify(this.titleCache), 0o660);
     fs.chmodSync(this.titleFile, 0o660);
   }
 

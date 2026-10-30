@@ -10,6 +10,8 @@ import { deepmergeInto } from "deepmerge-ts";
 import type { Config } from "lib/config";
 import type { AnimeId } from "lib/anime";
 
+import { writeFileAtomic } from "lib/fs";
+
 // NOTE: using fribb's anime-list (https://github.com/Fribb/anime-lists)
 //       mini variant has a type to help with tmdb_ids, sadly we don't know the season offset.
 const ListMapperURL =
@@ -100,9 +102,11 @@ export class AnimeIdmapList {
       });
 
       // write cache
-      fs.writeFileSync(this.mappingFile, toml.stringify(this.mappingCache), {
-        encoding: "utf8",
-      });
+      writeFileAtomic(
+        this.mappingFile,
+        toml.stringify(this.mappingCache),
+        0o660,
+      );
       fs.chmodSync(this.mappingFile, 0o660);
     } catch {
       return false;

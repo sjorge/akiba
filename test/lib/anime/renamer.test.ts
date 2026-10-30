@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, spyOn, test } from "bun:test";
+import toml from "@iarna/toml";
+import { machineIdSync } from "node-machine-id";
 
 import type { Config } from "lib/config";
 import type { AnimeStringFormatData } from "lib/anime/formatter";
@@ -12,6 +14,7 @@ import {
   makeTempDir,
   rejectionMessage,
   sampleFormatData,
+  seedCacheFile,
 } from "test/helpers";
 
 const FORMAT = "{anime_name_romaji}/{episode:number}.{filetype}";
@@ -104,6 +107,75 @@ test("AnimeRenamer.identify hashes and caches without the network", async (): Pr
   ).toContain("does not exist");
 });
 
+// the hash cache file of this machine, there is one per config
+function hashCacheFile(config: Config): string {
+  const names = fs
+    .readdirSync(config.cache.path)
+    .filter((name: string): boolean => name.endsWith(".hashes.toml"));
+  expect(names.length).toBe(1);
+  return path.join(config.cache.path, names[0]);
+}
+
+test("AnimeRenamer stores absolute hash keys for a relative target", async (): Promise<void> => {
+  // NOTE: regression for a relative target storing relative hash cache keys
+  const f = fixture();
+  const config = clientConfig();
+  const cwd = process.cwd();
+  process.chdir(path.dirname(f.target));
+  try {
+    const relative = new AnimeRenamer(config, false, FORMAT, "target");
+    const episode = await f.episode({}, relative);
+    const createdAt = episode.ed2khash.createdAt;
+
+    const result = await relative.rename(episode);
+    expect(result.action).toBe("move");
+
+    // NOTE: process.cwd() is the real path, /var is a link to /private/var
+    const destination = result.destination_path as string;
+    expect(destination).toBe(
+      path.join(process.cwd(), "target", "Test Anime", "13.mkv"),
+    );
+    const cache = toml.parse(fs.readFileSync(hashCacheFile(config), "utf8"));
+    expect(Object.keys(cache)).toEqual([destination]);
+
+    // a new renamer finds the entry by its absolute path, without rehashing
+    await Bun.sleep(5);
+    const again = new AnimeRenamer(config);
+    const cached = await again.identify(destination, false, true);
+    expect(cached.ed2khash.createdAt).toBe(createdAt);
+  } finally {
+    process.chdir(cwd);
+  }
+});
+
+test("AnimeRenamer drops relative keys from an old hash cache", async (): Promise<void> => {
+  // NOTE: regression for relative keys written before the target was resolved
+  const f = fixture();
+  const config = clientConfig();
+  const cwd = process.cwd();
+  process.chdir(path.dirname(f.target));
+  try {
+    // "source.mkv" exists relative to the cwd, so only its relative form
+    // can get it purged
+    const entry = {
+      hash: "a448017aaf21d8525fc10ae87aa6729d",
+      size: 3,
+      link: "",
+      createdAt: Date.now(),
+    };
+    seedCacheFile(config.cache.path, `${machineIdSync()}.hashes.toml`, {
+      [f.source]: entry,
+      "source.mkv": entry,
+    });
+
+    new AnimeRenamer(config);
+    const cache = toml.parse(fs.readFileSync(hashCacheFile(config), "utf8"));
+    expect(Object.keys(cache)).toEqual([f.source]);
+  } finally {
+    process.chdir(cwd);
+  }
+});
+
 test("AnimeRenamer.rename moves, copies, links and skips", async (): Promise<void> => {
   // without data nothing happens
   let f = fixture();
@@ -171,8 +243,11 @@ test("AnimeRenamer.rename moves, copies, links and skips", async (): Promise<voi
 });
 
 test("AnimeRenamer.rename handles moves across devices", async (): Promise<void> => {
-  function crossDevice(): ReturnType<typeof spyOn> {
-    return spyOn(fs, "renameSync").mockImplementation((): void => {
+  // only the move of `source` fails, the cache writes rename as usual
+  function crossDevice(source: string): ReturnType<typeof spyOn> {
+    const real = fs.renameSync;
+    return spyOn(fs, "renameSync").mockImplementation((from, to): void => {
+      if (from !== source) return real(from, to);
       const e = new Error(
         "EXDEV: cross-device link not permitted",
       ) as NodeJS.ErrnoException;
@@ -183,7 +258,7 @@ test("AnimeRenamer.rename handles moves across devices", async (): Promise<void>
 
   // NOTE: regression for detecting EXDEV by error code
   let f = fixture();
-  let spy = crossDevice();
+  let spy = crossDevice(f.source);
   try {
     expect((await f.renamer.rename(await f.episode())).action).toBe("move");
   } finally {
@@ -194,7 +269,7 @@ test("AnimeRenamer.rename handles moves across devices", async (): Promise<void>
 
   // a dry run does not copy
   f = fixture();
-  spy = crossDevice();
+  spy = crossDevice(f.source);
   try {
     await f.renamer.rename(await f.episode(), false, false, false, true);
   } finally {
@@ -205,9 +280,14 @@ test("AnimeRenamer.rename handles moves across devices", async (): Promise<void>
 
   // other errors are rethrown
   f = fixture();
-  const failing = spyOn(fs, "renameSync").mockImplementation((): void => {
-    throw new Error("EACCES: permission denied");
-  });
+  const source = f.source;
+  const real = fs.renameSync;
+  const failing = spyOn(fs, "renameSync").mockImplementation(
+    (from, to): void => {
+      if (from !== source) return real(from, to);
+      throw new Error("EACCES: permission denied");
+    },
+  );
   try {
     expect(
       await rejectionMessage(f.renamer.rename(await f.episode())),

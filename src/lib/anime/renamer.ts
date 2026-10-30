@@ -12,6 +12,7 @@ import { AnidbUDPClient, AnidbError } from "lib/anidb";
 import { log } from "lib/logger";
 
 import { generateEd2kHash } from "lib/ed2khash";
+import { writeFileAtomic } from "lib/fs";
 
 import type { Config } from "lib/config";
 import type { Ed2kHash } from "lib/ed2khash";
@@ -177,9 +178,8 @@ export class AnimeRenamer {
     this.cacheAgeHash = config.cache.hash_age;
 
     this.format = format ? format : config.renamer.format;
-    this.target = target
-      ? target
-      : config.renamer.target_path || path.resolve(".");
+    // NOTE: resolved, hash cache keys are built from the target
+    this.target = path.resolve(target ?? config.renamer.target_path ?? ".");
     this.rehash = rehash;
 
     this.hashCache = this.readHashCache();
@@ -201,7 +201,9 @@ export class AnimeRenamer {
       ) as HashCache;
 
       for (const episodeFile of Object.keys(cache)) {
-        if (!fs.existsSync(episodeFile)) {
+        // NOTE: relative keys come from a relative target, before it was
+        // resolved, they cannot be matched and are purged like missing files
+        if (!path.isAbsolute(episodeFile) || !fs.existsSync(episodeFile)) {
           // purge file that no longer exist
           delete cache[episodeFile];
           cachePurged = true;
@@ -237,13 +239,10 @@ export class AnimeRenamer {
     });
 
     // write cache file
-    fs.writeFileSync(
+    writeFileAtomic(
       hashCacheFile,
       toml.stringify(cache ? cache : this.hashCache),
-      {
-        encoding: "utf8",
-        mode: 0o660,
-      },
+      0o660,
     );
   }
 
@@ -291,10 +290,7 @@ export class AnimeRenamer {
 
     // write cache file
     if (episodeData !== undefined)
-      fs.writeFileSync(episodeCacheFile, toml.stringify(episodeData), {
-        encoding: "utf8",
-        mode: 0o660,
-      });
+      writeFileAtomic(episodeCacheFile, toml.stringify(episodeData), 0o660);
   }
 
   private async disconnect(): Promise<void> {
@@ -462,6 +458,10 @@ export class AnimeRenamer {
     refresh: boolean = false,
     hashOnly: boolean = false,
   ): Promise<AnimeRenamerEpisode> {
+    // NOTE: the hash cache is keyed by absolute path, library callers may
+    // pass a relative one
+    animeEpisodeFile = path.resolve(animeEpisodeFile);
+
     // sanity check parameters
     if (!fs.existsSync(animeEpisodeFile))
       throw new Error(`${animeEpisodeFile} does not exist!`);
