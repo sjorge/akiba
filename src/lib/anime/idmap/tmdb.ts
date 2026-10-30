@@ -1,5 +1,5 @@
 /*
- * Internal helpers for dealing with anilist api
+ * Internal helpers for dealing with the tmdb api
  */
 import { MovieDb } from "moviedb-promise";
 
@@ -74,12 +74,15 @@ export class AnimeIdmapTmdb {
                 media.original_language == "ja"
               ) {
                 let tmdbNormalizedTitle = t.title.toLowerCase();
-                tmdbNormalizedTitle = tmdbNormalizedTitle.replace("&", "and");
+                tmdbNormalizedTitle = tmdbNormalizedTitle.replaceAll(
+                  "&",
+                  "and",
+                );
                 tmdbNormalizedTitle = tmdbNormalizedTitle
-                  .replace("[", "【")
-                  .replace("]", "】");
+                  .replaceAll("[", "【")
+                  .replaceAll("]", "】");
                 tmdbNormalizedTitle = tmdbNormalizedTitle.replace(/\.$/, "。");
-                tmdbNormalizedTitle = tmdbNormalizedTitle.replace(",", "、");
+                tmdbNormalizedTitle = tmdbNormalizedTitle.replaceAll(",", "、");
 
                 if (mt.toLowerCase() == tmdbNormalizedTitle)
                   if (best_match == undefined) {

@@ -16,7 +16,7 @@ import { readConfig } from "lib/config";
 import { banner, log } from "lib/logger";
 
 /*
- * Entrypoint `local-mapping` action for commander-js
+ * Entrypoint `idmap` action for commander-js
  */
 async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
   const config: Config = readConfig();
@@ -63,7 +63,7 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
       }
     } else {
       if (mapping[aid] === undefined) mapping[aid] = {};
-      mapping[aid].anilist = parseInt(`${opts.anilistid}`);
+      mapping[aid].anilist = parseInt(`${opts.anilistid}`, 10);
     }
   }
   if (opts.tmdbid !== undefined) {
@@ -75,7 +75,7 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
       }
     } else {
       if (mapping[aid] === undefined) mapping[aid] = {};
-      mapping[aid].tmdb = parseInt(`${opts.tmdbid}`);
+      mapping[aid].tmdb = parseInt(`${opts.tmdbid}`, 10);
       mapping[aid].tmdbSeason = 1;
     }
   }
@@ -112,7 +112,7 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
 }
 
 /*
- * Setup `configure` command for commander-js
+ * Setup `idmap` command for commander-js
  */
 export function addIdmapCommand(program: Command): void {
   program

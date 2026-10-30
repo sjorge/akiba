@@ -24,7 +24,7 @@ export class AnimeIdmapAnilist {
 
   public constructor(config: Config, resolver?: AnimeResolver) {
     if (config.anilist.token === undefined)
-      throw new AnimeIdmapAnilistException("No Tmdb API key configured.");
+      throw new AnimeIdmapAnilistException("No Anilist token configured.");
 
     this.anilist = new AniList(config.anilist.token);
     this.resolver =
@@ -67,7 +67,7 @@ export class AnimeIdmapAnilist {
       if (tilteYearMatch !== null) {
         const nt: AnimeTitleVariant = {
           title: tilteYearMatch[1],
-          year: parseInt(tilteYearMatch[2]),
+          year: parseInt(tilteYearMatch[2], 10),
           type: t.type,
           language: t.language,
         };

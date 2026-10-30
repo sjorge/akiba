@@ -1,5 +1,5 @@
 /*
- * Internal helper types and function for anidb
+ * Internal helper types and function for renaming anime files
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -75,7 +75,7 @@ export class AnimeRenamer {
       config.anidb.udp_client.password === undefined
     )
       throw new Error(
-        "AnimeRenamer requires at least config.anidb.upd_client to have name, username, and password set.",
+        "AnimeRenamer requires at least config.anidb.udp_client to have name, username, and password set.",
       );
 
     this.anidb = new AnidbUDPClient(config.anidb.udp_client.name, {
@@ -89,7 +89,7 @@ export class AnimeRenamer {
     this.anidbApiKey = config.anidb.udp_client.api_key;
 
     this.cachePath = config.cache.path;
-    this.cacheAgeMetadata = config.cache.mapping_age;
+    this.cacheAgeMetadata = config.cache.metadata_age;
     this.cacheAgeHash = config.cache.hash_age;
 
     this.format = format ? format : config.renamer.format;
@@ -248,7 +248,6 @@ export class AnimeRenamer {
         "aid",
         "gid",
         "eid",
-        "gid",
         "mylist_id",
         "state",
         "size",
@@ -343,7 +342,9 @@ export class AnimeRenamer {
         episode_name_kanji: data.ep_kanji_name,
         episode_total: data.anime_total_episodes,
         episode_last: data.highest_episode,
-        anime_year: data.year.split("-").map((year: string) => parseInt(year)), // NOTE: can be YYYY-YYYY
+        anime_year: data.year
+          .split("-")
+          .map((year: string) => parseInt(year, 10)), // NOTE: can be YYYY-YYYY
         anime_type: data.type,
         anime_name_romaji: data.romanji_name,
         anime_name_kanji: data.kanji_name,
@@ -426,7 +427,8 @@ export class AnimeRenamer {
 
         episodeData.crc32 = Bun.hash
           .crc32(Buffer.from(data, "binary"))
-          .toString(16);
+          .toString(16)
+          .padStart(8, "0");
 
         episodeData.md5 = new Bun.CryptoHasher("md5")
           .update(data, "binary")
@@ -514,7 +516,7 @@ export class AnimeRenamer {
         const e = _e as NodeJS.ErrnoException;
         if (e.code !== "EXDEV") throw e;
 
-        // fallback to copy for filesystem boundries
+        // fallback to copy for filesystem boundaries
         if (!dryRun) {
           fs.copyFileSync(sourcePath, destinationPath);
           fs.unlinkSync(sourcePath);

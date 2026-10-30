@@ -19,7 +19,7 @@ export class AnimeShowNfo extends TvShowNfo {
     super(
       {
         uniqueId: [],
-        title: metadata.titles[0].title.replace("`", "'"),
+        title: metadata.titles[0].title.replaceAll("`", "'"),
       } as TvShow,
       path,
     );
@@ -45,12 +45,12 @@ export class AnimeShowNfo extends TvShowNfo {
       } as UniqueId);
 
     // update title (we prefer x-jat)
-    this.tvShow.title = metadata.titles[0].title.replace("`", "'");
+    this.tvShow.title = metadata.titles[0].title.replaceAll("`", "'");
     for (const t of metadata.titles as AnimeTitleVariant[]) {
       if (t.type == "main" && t.language == "x-jat") {
-        this.tvShow.title = t.title.replace("`", "'");
+        this.tvShow.title = t.title.replaceAll("`", "'");
       } else if (t.type == "official" && t.language == "ja") {
-        this.tvShow.originaltitle = t.title.replace("`", "'");
+        this.tvShow.originaltitle = t.title.replaceAll("`", "'");
       }
     }
 
@@ -116,15 +116,15 @@ export class AnimeEpisodeNfo extends EpisodeNfo {
               default: true,
             } as UniqueId,
           ],
-          title: episodeFile.title.replace("`", "'"),
+          title: episodeFile.title.replaceAll("`", "'"),
         };
 
         // update episode title
         for (const t of episodeMetadata.titles as AnimeTitleVariant[]) {
           if (t.language == "en") {
-            episode.title = t.title.replace("`", "'");
+            episode.title = t.title.replaceAll("`", "'");
           } else if (t.language == "ja") {
-            episode.originaltitle = t.title.replace("`", "'");
+            episode.originaltitle = t.title.replaceAll("`", "'");
           }
         }
 
@@ -132,12 +132,12 @@ export class AnimeEpisodeNfo extends EpisodeNfo {
         switch (episodeMetadata.type) {
           case 1:
             episode.season = 1;
-            episode.episode = parseInt(episodeMetadata.episodeNumber);
+            episode.episode = parseInt(episodeMetadata.episodeNumber, 10);
             break;
           default:
             episode.season = 0;
             episode.episode =
-              parseInt(episodeMetadata.episodeNumber.substring(1)) +
+              parseInt(episodeMetadata.episodeNumber.substring(1), 10) +
               episodeMetadata.type * 100;
             break;
         }

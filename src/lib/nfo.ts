@@ -218,7 +218,7 @@ export class EpisodeNfo {
     // check path exists
     if (!fs.existsSync(this.path) || !fs.statSync(this.path).isFile()) {
       throw new Error(
-        `The path '${this.path}' does not exist or is not a directory!`,
+        `The path '${this.path}' does not exist or is not a file!`,
       );
     }
   }

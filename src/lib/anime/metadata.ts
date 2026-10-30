@@ -1,5 +1,5 @@
 /*
- * Internal helper types and function for anidb
+ * Internal helper types and function for retrieving anime metadata
  */
 import { _DEFINE_PROG, _DEFINE_VER } from "vars";
 import fs from "node:fs";
@@ -76,21 +76,17 @@ export class AnimeMetadata {
     } catch (_e: unknown) {
       const e = _e as httpError;
 
-      switch (parseInt(e.code)) {
+      switch (parseInt(e.code, 10)) {
         case 302: // Client version missing or invalid
           throw new Error(
             "Please register a HTTP client on anidb and run 'configure' command again!",
           );
-          break;
         case 500: // Banned
           throw new Error("Please try again in 24h, we are currently banned!");
-          break;
         case 998: // Anime ID missing or invalid
           throw new Error(`Anime with ID ${id.anidb} is missing or invalid!`);
-          break;
         default:
           throw new Error(`Could not retrieve metadata! ${e}`);
-          break;
       }
     }
   }
