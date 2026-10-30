@@ -8,7 +8,7 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 import naturalCompare from "natural-compare";
-import { AnidbError } from "anidb-udp-client";
+import { AnidbError } from "lib/anidb";
 
 import type { Config } from "lib/config";
 import type { AniDBMylistState, AnimeRenamerEpisode } from "lib/anime/renamer";

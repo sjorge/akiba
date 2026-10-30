@@ -16,9 +16,8 @@ An attempt will be made to also map **Anilist** IDs, these are generally also pr
 
 Install dependancies and compile static binary
 
-> [!WARNING]
-> The **postinstall** hook will compile a static binary, in addition to using `sed` to work around an issue in anidb-udp-client dependancy.
-> I'm not proud of this hack, but until there is a new release, this is the only way to consistantly fix it.
+> [!NOTE]
+> The **postinstall** hook will compile a static binary.
 
 ```bash
 bun install
