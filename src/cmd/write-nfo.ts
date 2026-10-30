@@ -104,7 +104,7 @@ export async function nfoAction(
 
   log(`${title}: Identifying ...`, "step", true, id);
   id = opts.aid
-    ? ({ anidb: parseInt(`${opts.aid}`) } as AnimeId)
+    ? ({ anidb: parseInt(`${opts.aid}`, 10) } as AnimeId)
     : animeResolver.id(title);
 
   // unable to identify anime, exit
@@ -125,10 +125,10 @@ export async function nfoAction(
   // add additional ids from cli flags
   log(`${title}: Mapping IDs from cli flags ...`, "step", true, id);
   if (opts.anilistid) {
-    id.anilist = parseInt(`${opts.anilistid}`);
+    id.anilist = parseInt(`${opts.anilistid}`, 10);
   }
   if (opts.tmdbid) {
-    id.tmdb = parseInt(`${opts.tmdbid}`);
+    id.tmdb = parseInt(`${opts.tmdbid}`, 10);
     id.tmdbSeason = 1; // hardcode this for now
   }
   log(`${title}: Mapping IDs from cli flags ...`, "done", true, id);

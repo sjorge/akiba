@@ -67,7 +67,7 @@ export function banner(): void {
 
   log(`${_DEFINE_PROG} v${_DEFINE_VER}`);
   process.stdout.write(
-    `${"-".repeat(process.stdout.columns < 80 ? process.stdout.columns : 80)}\n`,
+    `${"-".repeat(Math.min(process.stdout.columns ?? 80, 80))}\n`,
   );
 
   printBanner = false;

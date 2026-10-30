@@ -133,7 +133,6 @@ export async function renameAction(
     if (!hashOnly)
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 
-    // XXX: p-throttle to limit to 1x every 4 sec ?
     let episode: AnimeRenamerEpisode;
 
     try {

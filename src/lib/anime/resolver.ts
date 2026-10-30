@@ -1,5 +1,5 @@
 /*
- * Internal helper types and function for anidb
+ * Internal helper types and function for resolving anime ids and titles
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -147,7 +147,7 @@ export class AnimeResolver {
     // match [anidb-<aid>] tag
     const aidMatch: RegExpExecArray | null = titleAidRegEx.exec(title);
     if (aidMatch !== null) {
-      return { anidb: parseInt(aidMatch[1]) } as AnimeId;
+      return { anidb: parseInt(aidMatch[1], 10) } as AnimeId;
     }
 
     // fuzzy search
@@ -158,7 +158,7 @@ export class AnimeResolver {
     let best_match_score: number = 0;
 
     Object.entries(this.titleCache).forEach(([key, value]) => {
-      const aid: number = parseInt(key);
+      const aid: number = parseInt(key, 10);
       const titles: AnimeTitleVariant[] = value;
       titles.forEach((variant: AnimeTitleVariant) => {
         if (variant.title == titleNormalized) {
@@ -209,20 +209,20 @@ export class AnimeResolver {
         title = singleEpisode?.title;
         episode = [
           singleEpisode?.episode.startsWith("0")
-            ? `${parseInt(singleEpisode?.episode)}`
+            ? `${parseInt(singleEpisode?.episode, 10)}`
             : `${singleEpisode?.episode}`,
         ];
       } else if (multiEpisode) {
         title = multiEpisode?.title;
         episode = multiEpisode?.episode.split("-").map((ep: string): string => {
-          return `${parseInt(ep)}`;
+          return `${parseInt(ep, 10)}`;
         });
       }
 
       // skip if we couldn't parse the episode filename
       if (title === undefined) continue;
 
-      // strip checkum from filename
+      // strip checksum from filename
       const checksum = episodeCrc32RegEx.exec(title)?.groups;
       if (checksum) title = title.replace(checksum?.crc32, "");
 

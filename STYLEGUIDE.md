@@ -269,9 +269,6 @@ These are observed, not rules:
 - `eslint.config.mjs` and `package.json` indent with 4 spaces, `src/` with 2.
   `eslint.config.mjs` sets `object-curly-spacing: never`, which
   `eslint-config-prettier` switches off.
-- `AnimeStringFormatException` sets its `name` to
-  `"AnimeFormatStringException"` (words swapped), and `AnimeIdmapAnilist`
-  throws `"No Tmdb API key configured."` for a missing Anilist token.
 - Header comments are missing from `cmd/*`, `cli.ts`, `vars.ts`, `logger.ts`
   and `config.ts`.
 - Misspellings that are part of public names or output and must not be renamed
@@ -284,4 +281,3 @@ These are observed, not rules:
 - `export const` naming is mixed (`configFile`, `ANIME_EPISODE_EXTENSIONS`,
   `_DEFINE_*`, `TitlesDBUrl`).
 - Prettier is a de facto requirement but not a declared dependency.
-- `cmd/rename.ts` has a stale `// XXX: p-throttle to limit to 1x every 4 sec ?`.

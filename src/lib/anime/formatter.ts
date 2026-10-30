@@ -56,7 +56,7 @@ export type AnimeStringFormatData = {
 export class AnimeStringFormatException extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "AnimeFormatStringException";
+    this.name = "AnimeStringFormatException";
   }
 }
 
@@ -90,7 +90,7 @@ export function animeStringFormat(
     return templateNew.join(path.sep);
   }
 
-  // apply tempalte
+  // apply template
   return sanitizeDirComponents(
     template.replace(
       /{(\w+)(?::(\w+))?}/g,
@@ -138,12 +138,12 @@ export function animeStringFormat(
 
 export function animeStringValidate(
   template: string,
-  thowException: boolean = false,
+  throwException: boolean = false,
 ): boolean {
   try {
     animeStringFormat(template, animeStringValidatorData);
   } catch (_e: unknown) {
-    if (thowException) throw _e;
+    if (throwException) throw _e;
     return false;
   }
 
