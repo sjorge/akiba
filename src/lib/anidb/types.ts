@@ -10,44 +10,50 @@ import type {
 } from "lib/anidb/constants";
 import type { UdpTransportOptions } from "lib/anidb/udp";
 
-export type CachableValue =
-  | string
-  | number
-  | Buffer
-  | null
-  | undefined
-  | Record<string, unknown>;
-
-export type AnidbCacheImplType = {
-  get<T extends CachableValue>(key: string): Promise<T | null | undefined>;
-  set: (key: string, value: CachableValue) => Promise<void>;
-};
-
 export type AnidbClientOptions = {
-  /** accepted for drop-in compatibility, ignored: caching is not part of this client */
-  cache?: AnidbCacheImplType;
-  /** the local port to listen on for responses (leave undefined if you are not sure) */
-  incomming_port?: number;
-  /** interval in milliseconds at which anidb is pinged to keep the session alive, defaults to 5 minutes */
+  /*
+   * the local port to listen on for responses, undefined or null picks a
+   * random one. The spec recommends a fixed port: too many different local
+   * ports from one IP get it banned.
+   */
+  incomming_port?: number | null;
+  /*
+   * when the fixed `incomming_port` is already in use, warn and use a random
+   * port for this connection instead of failing
+   */
+  incomming_port_random_fallback?: boolean;
+  // your client's version, a positive integer increased with every release,
+  // defaults to 1
+  client_version?: number;
+  // when behind NAT: idle time in milliseconds after which anidb is pinged to
+  // keep the NAT mapping alive, defaults to 5 minutes
   ping_interval?: number;
-  /** called once when the client disconnects (replaces the old `disconnect` event) */
+  // when not behind NAT: idle time in milliseconds after which UPTIME is sent
+  // to keep the session alive, defaults to 30 minutes (the session times out
+  // after 35)
+  uptime_interval?: number;
+  // called once when the client disconnects (replaces the old `disconnect`
+  // event)
   onDisconnect?: (info: { source?: unknown; error?: Error }) => void;
-  /** host, port and timing of the UDP transport, only meant for tests */
+  // called with problems that do not stop the client (nothing is printed by the
+  // library itself)
+  onWarning?: (message: string) => void;
+  // host, port and timing of the UDP transport, only meant for tests
   transport?: UdpTransportOptions;
 };
 
 export type EncodingType = keyof typeof ENCODINGS;
 export type MylistState = (typeof MYLIST_STATES)[keyof typeof MYLIST_STATES];
 export type MylistFileState = (typeof MYLIST_FILE_STATES)[number];
-export type ExportTemplate = (typeof EXPORT_TEMPLATES)[number];
+// the known templates (suggestions), AniDB decides which exist
+export type ExportTemplate = (typeof EXPORT_TEMPLATES)[number] | (string & {});
 export type VoteType = keyof typeof VOTE_TYPES;
 
-// TODO: phase 3 the old client misspells "end_unkown_month", kept for now
 export type DateflagsType =
   | "start_unknown_day"
   | "start_unknown_month"
   | "end_unknown_day"
-  | "end_unkown_month"
+  | "end_unknown_month"
   | "ended"
   | "start_unknown_year"
   | "end_unknown_year";
@@ -60,11 +66,14 @@ export type ParsedResponse = {
 
 export type ConnectResult = {
   session: string;
+  // AniDB says a newer release of this client software exists (reply 201)
+  new_version?: true;
   ip?: string | null;
   port?: string | null;
 };
 
-// TODO: 2.4 FileResult must match the mask definition in parsers
+// NOTE: FileResult must match the mask definition in parsers, a compile time
+// check in parsers/file.ts enforces it
 export type FileResult = {
   fid: number;
   aid: number;
@@ -73,7 +82,7 @@ export type FileResult = {
   mylist_id: number;
   other_episodes: string;
   is_deprecated: boolean;
-  state: string;
+  state: number;
   size: number;
   ed2k: string;
   md5: string;
@@ -82,17 +91,17 @@ export type FileResult = {
   video_color_depth: string;
   quality: string;
   source: string;
-  audio_codecs: string;
-  audio_bitrates: string;
+  audio_codecs: string[];
+  audio_bitrates: number[];
   video_codec: string;
-  video_bitrate: string;
+  video_bitrate: number;
   video_resolution: string;
   file_extension: string;
-  dub_language: string;
-  sub_language: string;
+  dub_language: string[];
+  sub_language: string[];
   length_seconds: number;
   description: string;
-  aired_date: string;
+  aired_date: number;
   anidb_filename: string;
   mylist_state: number;
   mylist_filestate: number;
@@ -111,7 +120,7 @@ export type FileResult = {
   romanji_name: string;
   kanji_name: string;
   english_name: string;
-  other_name: string;
+  other_name_list: string[];
   short_name_list: string[];
   synonym_list: string[];
   epno: string;
@@ -125,7 +134,8 @@ export type FileResult = {
   aid_record_updated: number;
 };
 
-// TODO: 2.4 AnimeResult must match the mask definition in parsers
+// NOTE: AnimeResult must match the mask definition in parsers, a compile time
+// check in parsers/anime.ts enforces it
 export type AnimeResult = {
   aid: number;
   dateflags: DateflagsType[];
@@ -160,7 +170,7 @@ export type AnimeResult = {
   tag_name_list: string[];
   tag_id_list: number[];
   tag_weight_list: number[];
-  date_record_updated: string;
+  date_record_updated: number;
   character_id_list: number[];
   specials_count: number;
   credits_count: number;
@@ -195,7 +205,7 @@ export type CharacterResult = {
     readonly is_main_seiyuu: boolean;
   }[];
   readonly episode_list: number[];
-  readonly last_update_date: string;
+  readonly last_update_date: number;
   readonly type: number;
   readonly gender: string;
 };
@@ -246,14 +256,20 @@ export type GroupResult = {
   readonly lastactivitydate: number;
   readonly grouprelations: {
     othergroupid: number;
-    relationtype: "participant_in" | "parent_of" | "merged_from" | "formerly";
+    relationtype:
+      | "participant_in"
+      | "parent_of"
+      | "merged_from"
+      | "now_known_as"
+      | "other"
+      | "formerly";
   }[];
 };
 
 export type GroupStatusEntry = {
   gid: number;
   group_name: string;
-  completition_state: AnimeStatus;
+  completion_state: AnimeStatus;
   last_episode_number: number;
   rating: number;
   votes: number;
@@ -288,12 +304,11 @@ export type MylistByAnimeResult =
         groups: { group: string; episodes: string }[];
         anime_title: string;
         episodes: number;
-        // TODO: phase 3 misspelled field names kept from the old client
-        eps_unkown: string;
+        eps_unknown: string;
         eps_hdd: string;
         eps_cd: string;
         eps_deleted: string;
-        eps_watiched: string;
+        eps_watched: string;
       };
       single?: undefined;
     };
@@ -304,23 +319,25 @@ export type MylistFileSpec =
   | { lid: number };
 
 export type MylistAddOptions = {
-  /** true to edit an existing entry; unsupplied values keep their original value. Implied (and ignored) when `lid` is passed */
+  // true to edit an existing entry; unsupplied values keep their original
+  // value. Implied (and ignored) when `lid` is passed
   edit?: boolean;
   state?: MylistState;
   viewed?: boolean;
   viewdate?: number;
-  /** (i.e. ed2k, dc, ftp, irc, ...) */
+  // (i.e. ed2k, dc, ftp, irc, ...)
   source?: string;
-  /** label of the storage */
+  // label of the storage
   storage?: string;
-  /** other remarks/notes (`<br/>` can be used to split into multiple lines) */
+  // other remarks/notes (`<br/>` can be used to split into multiple lines)
   other?: string;
 };
 
 export type MylistAddByFileResult =
   | { code: "MYLIST_ENTRY_ADDED"; lid: number }
-  | { code: "MYLIST_ENTRY_EDITED"; nr_edited: number }
-  | undefined;
+  | { code: "MYLIST_ENTRY_EDITED"; nr_edited: number };
+
+export type MylistAddByAnimeResult = { added: number } | { edited: number };
 
 export type MylistAnimeSpec = {
   anime: string | number;
@@ -329,23 +346,23 @@ export type MylistAnimeSpec = {
 };
 
 export type MylistStatsResult = {
-  anime: string;
-  eps: string;
-  files: string;
-  size_of_files: string;
-  added_animes: string;
-  added_eps: string;
-  added_files: string;
-  added_groups: string;
-  leech_perc: string;
-  glory_perc: string;
-  viewed_perc: string;
-  mylist_perc: string;
-  viewed_mylist_perc: string;
-  viewed_nr_eps: string;
-  votes: string;
-  reviews: string;
-  views_in_min: string;
+  anime: number;
+  eps: number;
+  files: number;
+  size_of_files: number;
+  added_animes: number;
+  added_eps: number;
+  added_files: number;
+  added_groups: number;
+  leech_perc: number;
+  glory_perc: number;
+  viewed_perc: number;
+  mylist_perc: number;
+  viewed_mylist_perc: number;
+  viewed_nr_eps: number;
+  votes: number;
+  reviews: number;
+  views_in_min: number;
 };
 
 export type VoteResult = {

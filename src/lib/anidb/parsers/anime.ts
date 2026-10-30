@@ -1,10 +1,11 @@
 /*
  * Parser for ANIME responses
  */
-import { Dateflags, ListField, NumBoolean } from "lib/anidb/parsers/fields";
-import { MaskedParser } from "lib/anidb/parsers/masked";
 import type { MaskDefinition, MaskResult } from "lib/anidb/parsers/masked";
 import type { AnimeResult } from "lib/anidb/types";
+
+import { Dateflags, ListField, NumBoolean } from "lib/anidb/parsers/fields";
+import { MaskedParser } from "lib/anidb/parsers/masked";
 
 const fmaskDef = {
   /*
@@ -90,7 +91,7 @@ const fmaskDef = {
   tag_name_list: [4, 8, ListField(String, ",", true)],
   tag_id_list: [4, 4, ListField(Number, ",", true)],
   tag_weight_list: [4, 2, ListField(Number, ",", true)],
-  date_record_updated: [4, 1, String],
+  date_record_updated: [4, 1, Number],
   /*
   7 128 int character id list
   6 64 retired
@@ -102,7 +103,6 @@ const fmaskDef = {
   0 1 unused
   */
   character_id_list: [5, 128, ListField(Number, ",", true)],
-  // todo figure out the response
   /*
   7 128 int4 specials count
   6 64 int4 credits count
@@ -120,9 +120,13 @@ const fmaskDef = {
   parody_count: [6, 8, Number],
 } as const satisfies MaskDefinition;
 
+/*
+ * Parser for ANIME replies, with the seven byte amask of the ANIME command.
+ * Without fields the default set is requested.
+ */
 export class AnimeParser extends MaskedParser<typeof fmaskDef> {
-  static readonly mask_definition = fmaskDef;
-  static readonly DEFAULT_ANIME_FIELDS = [
+  public static readonly mask_definition = fmaskDef;
+  public static readonly DEFAULT_ANIME_FIELDS = [
     "aid",
     "year",
     "type",
@@ -141,10 +145,14 @@ export class AnimeParser extends MaskedParser<typeof fmaskDef> {
     "review_count",
   ] as const;
 
-  constructor(fields?: ReadonlyArray<keyof AnimeResult>) {
+  public constructor(fields?: ReadonlyArray<keyof AnimeResult>) {
     const actualFields = fields || AnimeParser.DEFAULT_ANIME_FIELDS;
     // id is always requested (cache reasons!) aliases should too
     super(fmaskDef, [...actualFields, "aid"]);
+  }
+
+  public toString(): string {
+    return "AnimeParser";
   }
 }
 

@@ -8,7 +8,7 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 import naturalCompare from "natural-compare";
-import { AnidbError } from "lib/anidb";
+import { AnidbError, RESPONSE_CODE } from "lib/anidb";
 
 import type { Config } from "lib/config";
 import type { AniDBMylistState, AnimeRenamerEpisode } from "lib/anime/renamer";
@@ -24,6 +24,21 @@ import { AnimeRenamer } from "lib/anime/renamer";
 
 const IGNORE_EXTENSIONS: string[] = [".nfo", ".jpg", ".png"];
 const IGNORE_FILES: string[] = [".plexmatch", ".ignore"];
+
+/*
+ * Text for a failed AniDB UDP request, bans and outages already say how long
+ * to wait, the other errors get the generic hint
+ */
+function udpErrorText(e: AnidbError): string {
+  const waitsAlready: number[] = [
+    RESPONSE_CODE.BANNED,
+    RESPONSE_CODE.CLIENT_BANNED,
+    RESPONSE_CODE.ANIDB_OUT_OF_SERVICE,
+  ];
+  return waitsAlready.includes(e.code)
+    ? e.message
+    : `${e.message}, try again in 30 minutes.`;
+}
 
 /*
  * Entrypoint `rename` action for commander-js
@@ -112,7 +127,9 @@ export async function renameAction(
     }
   }
 
-  for (const episodeFile of episodeFiles.sort(naturalCompare)) {
+  const sortedEpisodeFiles = episodeFiles.sort(naturalCompare);
+  for (const [index, episodeFile] of sortedEpisodeFiles.entries()) {
+    const filesLeft = sortedEpisodeFiles.length - index - 1;
     if (!hashOnly)
       log(`${path.basename(episodeFile)}: Identifying ...`, "step");
 
@@ -124,7 +141,9 @@ export async function renameAction(
     } catch (_e: unknown) {
       const e = _e as AnidbError;
       log(`${path.basename(episodeFile)}: Identifying ...`, "error");
-      log(`AniDB UDP Client: ${e.message}, try again in 30 mintues.`, "error");
+      log(`AniDB UDP Client: ${udpErrorText(e)}`, "error");
+      if (filesLeft > 0)
+        log(`Stopped, ${filesLeft} file(s) not processed.`, "warn");
       process.exitCode = 1;
       return;
     }
@@ -155,10 +174,9 @@ export async function renameAction(
             `${path.basename(episodeFile)}: Updating mylist state to ${mylistState} ...`,
             "error",
           );
-          log(
-            `AniDB UDP Client: ${e.message}, try again in 30 mintues.`,
-            "error",
-          );
+          log(`AniDB UDP Client: ${udpErrorText(e)}`, "error");
+          if (filesLeft > 0)
+            log(`Stopped, ${filesLeft} file(s) not processed.`, "warn");
           process.exitCode = 1;
           return;
         }

@@ -2,7 +2,10 @@
  * Small helpers for building requests and decoding coded values
  */
 
-/** request parameters for a command that takes either an id or a name */
+/*
+ * Many commands take either an id or a name (`aid=` or `aname=`, `gid=` or
+ * `gname=`, `uid=` or `user=`). A string is a name, a number an id.
+ */
 export function nameOrId(
   param: string | number,
   idField: string,
@@ -18,7 +21,9 @@ export function nameOrId(
   return request;
 }
 
-/** swaps keys and values: `{ a: 1 }` becomes `{ 1: "a" }` */
+/*
+ * swaps keys and values: `{ a: 1 }` becomes `{ 1: "a" }`
+ */
 export function reverseObj<K extends string, V extends string | number>(
   input: Record<K, V>,
 ): Record<V, K> {

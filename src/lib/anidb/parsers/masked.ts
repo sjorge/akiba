@@ -1,10 +1,11 @@
 /*
  * Parser for responses where the requested fields are selected with a bit mask
  */
-import { MapField } from "lib/anidb/parsers/fields";
 import type { FieldParser } from "lib/anidb/parsers/fields";
 
-/** field name to `[byte, bit value, parser]` */
+import { MapField } from "lib/anidb/parsers/fields";
+
+// field name to `[byte, bit value, parser]`
 export type MaskDefinition = Record<
   string,
   readonly [number, number, FieldParser<unknown>]
@@ -14,15 +15,25 @@ export type MaskResult<D extends MaskDefinition> = {
   -readonly [K in keyof D]: ReturnType<D[K][2]>;
 };
 
+/*
+ * FILE and ANIME replies only hold the fields that were asked for with a mask:
+ * hexadecimal bytes in which every bit selects one field. Fields come back in
+ * table order (byte 1 bit 7 first, down to bit 0, then byte 2 and so on), so
+ * the order of the mask decides which value is which field. Retired, unused and
+ * reserved bits are not in the definitions because the server answers 505 when
+ * they are set.
+ */
 export class MaskedParser<D extends MaskDefinition> {
-  /** requested fields, sorted by position in the mask */
-  fields: string[];
-  /** the mask as hex string */
-  mask: string;
-  parseData: (data: string) => Partial<MaskResult<D>>;
+  // requested fields, sorted by position in the mask
+  public fields: string[];
+  // the mask as hex string
+  public mask: string;
+  public parseData: (data: string) => Partial<MaskResult<D>>;
 
-  /** @param mask list of field names */
-  constructor(
+  /*
+   * `mask`: list of field names
+   */
+  public constructor(
     protected definition: D,
     mask: Array<keyof D & string>,
   ) {
@@ -32,6 +43,10 @@ export class MaskedParser<D extends MaskDefinition> {
     this.parseData = MapField(
       new Map(this.fields.map((field) => [field, this.definition[field]![2]])),
     ) as (data: string) => Partial<MaskResult<D>>;
+  }
+
+  public toString(): string {
+    return "MaskedParser";
   }
 
   private prepareMaskArray(maskArray: string[]): string[] {

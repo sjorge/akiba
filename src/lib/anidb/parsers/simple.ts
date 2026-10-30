@@ -1,14 +1,19 @@
 /*
  * Parser for responses with a fixed, `|` separated field list
  */
-import { MapFieldStatic } from "lib/anidb/parsers/fields";
 import type { FieldParser } from "lib/anidb/parsers/fields";
 
-export class SimpleParser<V extends Record<string, FieldParser<unknown>>> {
-  parseData: (data: string) => { [K in keyof V]: ReturnType<V[K]> };
+import { MapFieldStatic } from "lib/anidb/parsers/fields";
 
-  constructor(responseDefinition: V) {
+export class SimpleParser<V extends Record<string, FieldParser<unknown>>> {
+  public parseData: (data: string) => { [K in keyof V]: ReturnType<V[K]> };
+
+  public constructor(responseDefinition: V) {
     this.parseData = MapFieldStatic(responseDefinition, "|");
+  }
+
+  public toString(): string {
+    return "SimpleParser";
   }
 }
 
