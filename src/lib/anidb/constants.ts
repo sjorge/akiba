@@ -2,15 +2,51 @@
  * Constants shared by the AniDB UDP client
  */
 
-export const ANIDB_HOST = "api.anidb.net";
-export const ANIDB_PORT = 9000;
-export const PROTOCOL_VERSION = 3;
+/*
+ * Server and port of the AniDB UDP API (spec: api.anidb.net, port 9000/UDP).
+ * The spec asks front ends to read them from configuration instead of hard
+ * coding them, the transport takes a `host` and a `port` option for that.
+ */
+export const ANIDB_HOST: string = "api.anidb.net";
+export const ANIDB_PORT: number = 9000;
+/*
+ * Version of the API spec this client was written against, sent as `protover`
+ * in AUTH. The spec says a client may send nothing but the version of the spec
+ * its author used ("3" in the spec this was written from); the server compares
+ * it with its own and refuses clients that are too old (503).
+ */
+export const PROTOCOL_VERSION: number = 3;
 
-// the spec allows one packet per 4 s long term, stay clearly below that
-export const REQUEST_INTERVAL_MS = 5000;
-export const REQUEST_TIMEOUT_MS = 30000;
-export const PING_INTERVAL_MS = 300000;
+// Flood protection (spec): short term at most 0.5 packets per second (enforced
+// after the first 5), long term at most one packet per 4 s. Requests run
+// strictly one at a time with this spacing, 25 percent above the long term
+// limit, so neither rule is ever hit. Do not lower this.
+export const REQUEST_INTERVAL_MS: number = 5000;
+/*
+ * No reply within this time means the packet or the reply was dropped, the
+ * server is down or the IP is banned (usually for 30 minutes). Dropped packets
+ * still count towards the packet rate, so there is no automatic resend.
+ */
+export const REQUEST_TIMEOUT_MS: number = 30000;
+/*
+ * Behind NAT: idle time after which a PING keeps the NAT mapping alive. Routers
+ * drop UDP mappings after 5 to 15 minutes of silence and the spec warns that a
+ * new mapping (a new port) can get the client banned.
+ */
+export const PING_INTERVAL_MS: number = 300000;
+/*
+ * Without NAT: idle time after which UPTIME is sent to keep the session open.
+ * The server drops a session after 35 minutes without data and the spec asks
+ * for an UPTIME about every 30 minutes.
+ */
+export const UPTIME_INTERVAL_MS: number = 1800000;
 
+/*
+ * Encodings AniDB can switch to, the names of the Java charsets that the spec
+ * links to. The server default is ASCII, the client asks for UTF8. An
+ * unsupported encoding is silently ignored by AUTH, ENCODING answers 519 for
+ * it.
+ */
 export const ENCODINGS = {
   ISO8859_1: "ISO8859_1",
   ISO8859_2: "ISO8859_2",
@@ -36,6 +72,11 @@ export const ENCODINGS = {
   UnicodeLittle: "UnicodeLittle",
 } as const;
 
+/*
+ * State of a file in the mylist (spec: MYLIST): 0 unknown, 1 stored on the hdd
+ * but not shared, 2 stored on cd/dvd, 3 deleted or otherwise not available
+ * (i.e. reencoded), 4 stored on a nas or in the cloud.
+ */
 export const MYLIST_STATES = {
   "0": "unknown",
   "1": "internal_storage",
@@ -57,6 +98,11 @@ export const MYLIST_FILE_STATES = [
   "streamed",
 ] as const;
 
+/*
+ * Mylist export templates known when this was written. The spec only says that
+ * a template name must match one on the MyList Export page of the website, so
+ * the server has the last word (317 for unknown ones).
+ */
 export const EXPORT_TEMPLATES = [
   "csv-adborg",
   "csv-files",
@@ -100,6 +146,10 @@ export const EXPORT_TEMPLATES = [
   "xml-xslt",
 ] as const;
 
+/*
+ * Vote types of the VOTE command (spec: 1 anime, 2 anime temporary vote, 3
+ * group, 6 episode).
+ */
 export const VOTE_TYPES = {
   anime: "1",
   anime_tmp: "2",
@@ -107,6 +157,11 @@ export const VOTE_TYPES = {
   episode: "6",
 } as const;
 
+/*
+ * Reply codes above 305 (errors and "nothing found" answers) by name. The names
+ * are the strings the server sends, the spec nevertheless asks clients to work
+ * with the numbers.
+ */
 export const ERROR_RESPONSE_CODES = {
   NO_SUCH_FILE: 320,
   NO_SUCH_ENTRY: 321,
@@ -171,12 +226,18 @@ export const ERROR_RESPONSE_CODES = {
   PUSHACK_CONFIRMED: 701,
   NO_SUCH_PACKET_PENDING: 702,
   VERSION: 998,
+  // 670 to 673 are client side codes, never sent by the server and not in the
+  // spec
   UNKNOWN_API_ERROR: 670,
   CONNECTION_TIMEOUT: 671,
   NOT_CONNECTED: 672,
-  FAILED_TO_INITIALIZE: 672,
+  FAILED_TO_INITIALIZE: 673,
 } as const;
 
+/*
+ * Every reply code of the spec (section Return Codes) by name, plus the client
+ * side codes 670 to 673 that the server never sends.
+ */
 export const RESPONSE_CODE = {
   LOGIN_ACCEPTED: 200,
   LOGIN_ACCEPTED_NEW_VERSION: 201,
@@ -237,7 +298,7 @@ export const RESPONSE_CODE = {
   RANDOM_SIMILAR: 267,
   NOTIFICATION_ENABLED: 270,
   NOTIFYACK_SUCCESSFUL_MESSAGE: 281,
-  NOTIFYACK_SUCCESSFUL_NOTIFIATION: 282,
+  NOTIFYACK_SUCCESSFUL_NOTIFICATION: 282,
   NOTIFICATION_STATE: 290,
   NOTIFYLIST: 291,
   NOTIFYGET_MESSAGE: 292,
@@ -322,17 +383,17 @@ export const RESPONSE_CODE = {
   PUSHACK_CONFIRMED: 701,
   NO_SUCH_PACKET_PENDING: 702,
   VERSION: 998,
+  // 670 to 673 are client side codes, never sent by the server and not in the
+  // spec
   UNKNOWN_API_ERROR: 670,
   CONNECTION_TIMEOUT: 671,
   NOT_CONNECTED: 672,
-  FAILED_TO_INITIALIZE: 672,
+  FAILED_TO_INITIALIZE: 673,
 } as const;
 
 export type ResponseLabel = keyof typeof RESPONSE_CODE;
 export type ResponseCode = (typeof RESPONSE_CODE)[ResponseLabel];
 
-// TODO: phase 3 NOT_CONNECTED and FAILED_TO_INITIALIZE share code 672, the
-// later entry wins the label lookup (as in the old client)
 const CODE_TO_LABEL = new Map<number, ResponseLabel>(
   (Object.entries(RESPONSE_CODE) as [ResponseLabel, ResponseCode][]).map(
     ([label, code]) => [code, label],
@@ -343,6 +404,10 @@ export function getResponse(code: number | string): ResponseLabel | null {
   return CODE_TO_LABEL.get(Number(code)) ?? null;
 }
 
+/*
+ * Codes any command may return: 505, 555, 598 and 600, 601, 602, 604, and for
+ * commands that need a login 501, 502 and 506 (spec: Basics, general).
+ */
 export const GLOBAL_ERRORS: ResponseCode[] = [
   RESPONSE_CODE.BANNED,
   RESPONSE_CODE.UNKNOWN_COMMAND,
@@ -356,11 +421,15 @@ export const GLOBAL_ERRORS: ResponseCode[] = [
   RESPONSE_CODE.INVALID_SESSION,
 ];
 
+/*
+ * Codes after which the client closes the connection. NOTE: 501 and 506 are
+ * first answered by logging in again (see `callApi`), they only end the
+ * connection when that does not help.
+ */
 export const FATAL_ERROR_CODES: ResponseCode[] = [
   RESPONSE_CODE.ACCESS_DENIED,
   RESPONSE_CODE.CLIENT_VERSION_OUTDATED,
   RESPONSE_CODE.CLIENT_BANNED,
-  RESPONSE_CODE.ILLEGAL_INPUT_OR_ACCESS_DENIED,
   RESPONSE_CODE.BANNED,
   RESPONSE_CODE.ANIDB_OUT_OF_SERVICE,
   RESPONSE_CODE.LOGIN_FIRST,

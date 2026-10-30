@@ -1,15 +1,15 @@
 /*
  * Internal helper types and function for anidb
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import toml from "@iarna/toml";
 import Bun from "bun";
-import { EventEmitter } from "events";
 import { machineIdSync } from "node-machine-id";
 import { AnidbUDPClient, AnidbError } from "lib/anidb";
-
-import type { AnidbCacheImplType } from "lib/anidb";
+import { log } from "lib/logger";
 
 import { generateEd2kHash } from "lib/ed2khash";
 
@@ -19,6 +19,16 @@ import {
   animeStringFormat,
   type AnimeStringFormatData,
 } from "lib/anime/formatter";
+
+/*
+ * AniDB asks for a fixed local UDP port, too many different ports from one IP
+ * get it banned. Derive one from the hostname: random between hosts, stable on
+ * the same VM or container.
+ */
+export function localUdpPort(hostname: string = os.hostname()): number {
+  const hash = crypto.createHash("sha256").update(hostname).digest();
+  return 10000 + (hash.readUInt32BE(0) % 50000);
+}
 
 export type AniDBMylistState =
   | "internal_storage"
@@ -30,22 +40,6 @@ export type AniDBMylistState =
 type HashCache = {
   [path: string]: Ed2kHash;
 };
-
-// use a dummy cache as we will be caching a layer above AnidbUDPClient
-class AnidbCacheDummy implements AnidbCacheImplType {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public get<T>(key: string): Promise<T | undefined | null> {
-    return Promise.resolve(null);
-  }
-
-  public set(
-    key: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    value: // eslint-disable-line @typescript-eslint/no-unused-vars
-    string | number | Buffer | null | undefined | Record<string, unknown>,
-  ): Promise<void> {
-    return Promise.resolve();
-  }
-}
 
 export type AnimeRenamerEpisode = {
   path: string;
@@ -85,7 +79,10 @@ export class AnimeRenamer {
       );
 
     this.anidb = new AnidbUDPClient(config.anidb.udp_client.name, {
-      cache: new AnidbCacheDummy(),
+      client_version: config.anidb.udp_client.version,
+      incomming_port: localUdpPort(),
+      incomming_port_random_fallback: true,
+      onWarning: (message: string): void => log(message, "warn"),
     });
     this.anidbUsername = config.anidb.udp_client.username;
     this.anidbPassword = config.anidb.udp_client.password;
@@ -102,10 +99,6 @@ export class AnimeRenamer {
     this.rehash = rehash;
 
     this.hashCache = this.readHashCache();
-
-    // anidb-udp-client goes over the default 10 limit
-    EventEmitter.defaultMaxListeners = 64;
-    this.anidb.setMaxListeners(64);
   }
 
   public toString(): string {
@@ -288,7 +281,7 @@ export class AnimeRenamer {
         "romanji_name",
         "kanji_name",
         "english_name",
-        "other_name",
+        "other_name_list",
         "short_name_list",
         "synonym_list",
         "category_list",
@@ -305,7 +298,7 @@ export class AnimeRenamer {
       const STATUS_UNC = 0x40;
       const STATUS_CEN = 0x80;
 
-      const status_code = parseInt(`${data.state}`, 10);
+      const status_code = data.state;
 
       let version = "";
       if ((status_code & STATUS_ISV2) > 0) version = "v2";
@@ -318,25 +311,26 @@ export class AnimeRenamer {
       if ((status_code & STATUS_UNC) > 0) censored = "unc";
 
       return {
-        fid: parseInt(`${data.fid}`, 10), // typedef as number but actually returns string
+        fid: data.fid,
         aid: data.aid,
         eid: data.eid,
         gid: data.gid,
         lid: data.mylist_id,
-        status: parseInt(`${data.state}`, 10),
+        status: data.state,
         size: data.size,
         ed2k: data.ed2k,
         md5: data.md5,
         sha1: data.sha1,
         crc32: data.crc32,
-        lang_dub: data.dub_language,
-        lang_sub: data.sub_language,
+        // several values print as before: joined with a single quote
+        lang_dub: data.dub_language.join("'"),
+        lang_sub: data.sub_language.join("'"),
         quaility: data.quality,
         source: data.source,
-        audio_codec: data.audio_codecs,
-        audio_bitrate: data.audio_bitrates,
+        audio_codec: data.audio_codecs.join("'"),
+        audio_bitrate: data.audio_bitrates.join("'"),
         video_codec: data.video_codec,
-        video_bitrate: data.video_bitrate,
+        video_bitrate: data.video_bitrate ? `${data.video_bitrate}` : "",
         resolution: data.video_resolution,
         filetype: data.file_extension,
         length: data.length_seconds,
@@ -354,7 +348,7 @@ export class AnimeRenamer {
         anime_name_romaji: data.romanji_name,
         anime_name_kanji: data.kanji_name,
         anime_name_english: data.english_name,
-        anime_name_other: data.other_name.split("'"), // XXX: this is broken upstream https://github.com/tsukeero/anidb-udp-client/pull/21
+        anime_name_other: data.other_name_list,
         anime_name_short: data.short_name_list,
         anime_synonyms: data.synonym_list,
         anime_category: data.category_list,

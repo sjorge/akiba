@@ -12,6 +12,11 @@ type Job = {
   reject: (reason: unknown) => void;
 };
 
+/*
+ * Runs jobs one at a time with a minimum time between the starts of two jobs,
+ * which is how the flood protection of the spec is kept. The lowest priority
+ * number runs first, equal priorities run in the order they were scheduled.
+ */
 export class RateLimiter {
   private queue: Job[] = [];
   private counter: number = 0;
@@ -20,10 +25,16 @@ export class RateLimiter {
   private lastStart: number = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(private minInterval: number) {}
+  public constructor(private minInterval: number) {}
 
-  /** lower priority numbers run first, equal priorities run in call order */
-  schedule<T>(priority: number, run: () => Promise<T>): Promise<T> {
+  public toString(): string {
+    return "RateLimiter";
+  }
+
+  /*
+   * lower priority numbers run first, equal priorities run in call order
+   */
+  public schedule<T>(priority: number, run: () => Promise<T>): Promise<T> {
     if (this.stopped) {
       return Promise.reject(new AnidbError(RESPONSE_CODE.NOT_CONNECTED));
     }
@@ -40,8 +51,10 @@ export class RateLimiter {
     });
   }
 
-  /** reject all waiting jobs and refuse new ones */
-  stop(): void {
+  /*
+   * reject all waiting jobs and refuse new ones
+   */
+  public stop(): void {
     this.stopped = true;
     clearTimeout(this.timer);
     this.timer = undefined;
