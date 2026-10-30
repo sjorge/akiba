@@ -7,9 +7,9 @@ import toml from "@iarna/toml";
 import Bun from "bun";
 import { EventEmitter } from "events";
 import { machineIdSync } from "node-machine-id";
-import { AnidbUDPClient, AnidbError } from "anidb-udp-client";
+import { AnidbUDPClient, AnidbError } from "lib/anidb";
 
-import type { AnidbCacheImplType } from "anidb-udp-client";
+import type { AnidbCacheImplType } from "lib/anidb";
 
 import { generateEd2kHash } from "lib/ed2khash";
 
