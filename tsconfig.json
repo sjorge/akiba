@@ -28,6 +28,7 @@
     "noPropertyAccessFromIndexSignature": false,
 
     // Preferences
-    "baseUrl": "./src"
+    "baseUrl": "./src",
+    "paths": {"test/*": ["../test/*"]}
   }
 }
