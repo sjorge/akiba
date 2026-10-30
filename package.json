@@ -23,12 +23,13 @@
     "description": "Utility to export stub-NFO's for use with jellyfin.",
     "license": "MIT",
     "scripts": {
+        "test": "bun test",
         "start": "bun run src/cli.ts",
         "compile": "mkdir -p bin/ ; bun build src/cli.ts --compile --outfile bin/akiba",
         "lint": "bun x --bun eslint --max-warnings=0",
         "check": "bun x --bun tsc --noEmit --pretty",
-        "pretty:check": "bun x --bun prettier --check src/",
-        "pretty:write": "bun x --bun prettier --write src/",
+        "pretty:check": "bun x --bun prettier --check src/ test/",
+        "pretty:write": "bun x --bun prettier --write src/ test/",
         "postinstall": "bun compile"
     },
     "type": "module",

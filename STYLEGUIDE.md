@@ -9,7 +9,7 @@ for LLM assistants alike: the checklist comes first, the details follow.
 
 - Format with Prettier defaults (2 spaces, double quotes, semicolons, trailing
   commas, 80 columns). Lint with `bun run lint`, type check with
-  `bun run check`, both must be clean. There is no test suite.
+  `bun run check`, both must be clean, and `bun test` must pass.
 - Import application modules by bare path (`lib/config`), never with `../`.
   Node built-ins use the `node:` prefix. Type-only imports use `import type`.
 - Every function has an explicit return type. No `any`.
@@ -29,7 +29,8 @@ for LLM assistants alike: the checklist comes first, the details follow.
   `ESNext`, `moduleResolution: bundler`, `verbatimModuleSyntax: true`, so
   type-only imports must be `import type`.
 - Prettier runs with no config file (`bun run pretty:check` / `pretty:write`,
-  scope `src/`). It is not in `devDependencies`, it runs through `bun x`.
+  scope `src/` and `test/`). It is not in `devDependencies`, it runs through
+  `bun x`.
 - ESLint (`eslint.config.mjs`): `eslint:recommended` and `typescript-eslint`
   recommended, `--max-warnings=0`, plus `explicit-function-return-type`,
   `no-explicit-any`, `no-unused-vars`, `no-floating-promises`,
@@ -53,6 +54,7 @@ src/lib/*.ts            shared helpers (config, logger, nfo, ed2khash, anime typ
 src/lib/anime/*.ts      anime domain classes (resolver, renamer, metadata, nfo, formatter)
 src/lib/anime/idmap/    ID mapping sources (local, list, anilist, tmdb)
 src/lib/anidb/          AniDB UDP API client (self contained, see section 11)
+test/                   bun tests, mirrors src/ (see section 12)
 types/                  ambient .d.ts for untyped packages (anidbjs.d.ts)
 ```
 
@@ -261,6 +263,19 @@ later, so it follows a few extra rules:
   AniDB "UDP API Definition" (the wiki page). Keep the request spacing
   (`REQUEST_INTERVAL_MS`) and the single request in flight, they implement the
   spec's flood protection.
+
+## 12. Tests
+
+- Tests run with `bun test` (`bunfig.toml` sets `root = "test"` and a preload
+  that points the config and cache at a temp directory).
+- `test/` mirrors `src/`: `src/lib/anime/formatter.ts` is tested by
+  `test/lib/anime/formatter.test.ts`. Files are named `<name>.test.ts`.
+- Tests follow the same rules as `src/`: bare imports (`lib/...`,
+  `test/helpers`), explicit return types on every callback, and the modeline.
+- No network. Seed caches with `seedCacheFile` and build config with
+  `makeConfig` from `test/helpers.ts`, and use `makeTempDir` for any file
+  system work.
+- `src/lib/anidb/` has no tests here, do not add any.
 
 ## Known inconsistencies
 
