@@ -15,7 +15,12 @@ function name(value: string): string {
 }
 
 test("animeStringFormat applies tags, modifiers and array indexes", (): void => {
-  const data = sampleFormatData({ anime_name_romaji: "Mixed Case" });
+  // NOTE: pinned, the real record has no zero padded episode or categories
+  const data = sampleFormatData({
+    anime_name_romaji: "Mixed Case",
+    episode: "013",
+    anime_category: ["Action", "Comedy"],
+  });
 
   // plain tags, strings and numbers
   expect(
@@ -23,8 +28,8 @@ test("animeStringFormat applies tags, modifiers and array indexes", (): void => 
       "{anime_name_romaji} - {episode} ({crc32}).{filetype}",
       data,
     ),
-  ).toBe("Mixed Case - 013 (deadbeef).mkv");
-  expect(animeStringFormat("{aid}", data)).toBe("100");
+  ).toBe("Mixed Case - 013 (438a7b93).mkv");
+  expect(animeStringFormat("{aid}", data)).toBe("10914");
 
   // case modifiers, which are case insensitive themselves
   expect(animeStringFormat("{anime_name_romaji:upper}", data)).toBe(
@@ -38,7 +43,7 @@ test("animeStringFormat applies tags, modifiers and array indexes", (): void => 
 
   // number strips zeros, keeps ranges, falls back for anything else
   expect(animeStringFormat("{episode:number}", data)).toBe("13");
-  expect(animeStringFormat("{aid:number}", data)).toBe("100");
+  expect(animeStringFormat("{aid:number}", data)).toBe("10914");
   for (const [episode, expected] of [
     ["01-03", "1-3"],
     ["abc", "abc"],
@@ -66,12 +71,12 @@ test("animeStringFormat sanitizes tag values but not the template", (): void => 
   expect(name("A & B! (2020), ~+")).toBe("A & B! (2020), ~+");
 
   expect(animeStringFormat("a:b/{crc32}", sampleFormatData())).toBe(
-    "a:b/deadbeef",
+    "a:b/438a7b93",
   );
 });
 
 test("animeStringFormat cleans up directory parts and path traversal", (): void => {
-  const data = sampleFormatData();
+  const data = sampleFormatData({ anime_name_romaji: "Test Anime" });
 
   // a trailing period is stripped from directories, not from the basename
   expect(
@@ -79,7 +84,7 @@ test("animeStringFormat cleans up directory parts and path traversal", (): void 
       "{anime_name_romaji}./Season 1./{crc32}.{filetype}",
       data,
     ),
-  ).toBe("Test Anime/Season 1/deadbeef.mkv");
+  ).toBe("Test Anime/Season 1/438a7b93.mkv");
   expect(
     animeStringFormat("{anime_name_romaji}/{anime_name_romaji}.", data),
   ).toBe("Test Anime/Test Anime.");

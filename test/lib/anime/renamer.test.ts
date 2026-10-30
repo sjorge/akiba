@@ -8,6 +8,7 @@ import type { Config } from "lib/config";
 import type { AnimeStringFormatData } from "lib/anime/formatter";
 import type { AnimeRenamerEpisode } from "lib/anime/renamer";
 
+import { AnidbError, AnidbUDPClient, RESPONSE_CODE } from "lib/anidb";
 import { AnimeRenamer, localUdpPort } from "lib/anime/renamer";
 import {
   makeConfig,
@@ -26,6 +27,13 @@ function clientConfig(): Config {
     },
   });
 }
+
+// NOTE: the destination path is built from these, the rest of the episode is
+//       the real record from test/fixtures
+const PINNED: Partial<AnimeStringFormatData> = {
+  anime_name_romaji: "Test Anime",
+  episode: "013",
+};
 
 type Fixture = {
   source: string;
@@ -63,7 +71,7 @@ function fixture(format: string = FORMAT, target?: string): Fixture {
     ): Promise<AnimeRenamerEpisode> => {
       // NOTE: reads result.source so a test can point it somewhere else
       const episode = await other.identify(result.source, false, true);
-      episode.data = sampleFormatData(data);
+      episode.data = sampleFormatData({ ...PINNED, ...data });
       return episode;
     },
   };
@@ -393,6 +401,62 @@ test("AnimeRenamer.rename falls back to Episode N", async (): Promise<void> => {
   expect(path.basename(result.destination_path as string)).toBe(
     `${"a".repeat(235)} - Episode 13.mkv`,
   );
+});
+
+test("AnimeRenamer.identify returns no data for a hash unknown to AniDB", async (): Promise<void> => {
+  const f = fixture();
+  const config = clientConfig();
+  const renamer = new AnimeRenamer(config, false, FORMAT, f.target);
+  const connect = spyOn(AnidbUDPClient.prototype, "connect").mockResolvedValue(
+    undefined,
+  );
+  const disconnect = spyOn(
+    AnidbUDPClient.prototype,
+    "disconnect",
+  ).mockResolvedValue(undefined);
+  const lookup = spyOn(
+    AnidbUDPClient.prototype,
+    "file_by_hash",
+  ).mockRejectedValue(new AnidbError(RESPONSE_CODE.NO_SUCH_FILE));
+  try {
+    const episode = await renamer.identify(f.source);
+    expect(episode.data).toBeUndefined();
+    expect(episode.ed2khash).toBeDefined();
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(disconnect).not.toHaveBeenCalled();
+    const cacheDir = path.join(config.cache.path, "anidb");
+    const written = fs.existsSync(cacheDir)
+      ? fs.readdirSync(cacheDir).filter((n) => n.endsWith(".fid.toml"))
+      : [];
+    expect(written).toEqual([]);
+  } finally {
+    connect.mockRestore();
+    disconnect.mockRestore();
+    lookup.mockRestore();
+  }
+});
+
+test("AnimeRenamer.identify disconnects and rethrows on other AniDB errors", async (): Promise<void> => {
+  const f = fixture();
+  const connect = spyOn(AnidbUDPClient.prototype, "connect").mockResolvedValue(
+    undefined,
+  );
+  const disconnect = spyOn(
+    AnidbUDPClient.prototype,
+    "disconnect",
+  ).mockResolvedValue(undefined);
+  const lookup = spyOn(
+    AnidbUDPClient.prototype,
+    "file_by_hash",
+  ).mockRejectedValue(new AnidbError(RESPONSE_CODE.BANNED));
+  try {
+    await rejectionMessage(f.renamer.identify(f.source));
+    expect(disconnect).toHaveBeenCalled();
+  } finally {
+    connect.mockRestore();
+    disconnect.mockRestore();
+    lookup.mockRestore();
+  }
 });
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

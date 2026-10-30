@@ -49,55 +49,22 @@ export function seedCacheFile(
 }
 
 /*
- * Realistic template data for the formatter and the renamer
+ * Template data for the formatter and the renamer, a real record out of the
+ * AniDB file cache (test/fixtures/anidb-file.fid.toml)
  */
+export const SAMPLE_FILE_FIXTURE: string = path.join(
+  import.meta.dir,
+  "fixtures",
+  "anidb-file.fid.toml",
+);
+
 export function sampleFormatData(
   overrides: Partial<AnimeStringFormatData> = {},
 ): AnimeStringFormatData {
   return {
-    fid: 1,
-    aid: 100,
-    eid: 1000,
-    gid: 10,
-    lid: 0,
-    status: 0,
-    size: 1024,
-    ed2k: "31d6cfe0d16ae931b73c59d7e0c089c0",
-    md5: "",
-    sha1: "",
-    crc32: "deadbeef",
-    lang_dub: "japanese",
-    lang_sub: "english",
-    quaility: "high",
-    source: "www",
-    audio_codec: "AAC",
-    audio_bitrate: "128",
-    video_codec: "H264",
-    video_bitrate: "1000",
-    resolution: "1920x1080",
-    filetype: "mkv",
-    length: 1440,
-    description: "",
-    group: "Some Group",
-    group_short: "SG",
-    episode: "013",
-    episode_name: "The Episode",
-    episode_name_romaji: "Za Episode",
-    episode_name_kanji: "エピソード",
-    episode_total: 24,
-    episode_last: 24,
-    anime_year: [2020],
-    anime_type: "TV Series",
-    anime_name_romaji: "Test Anime",
-    anime_name_kanji: "テスト",
-    anime_name_english: "Test Anime EN",
-    anime_name_other: [],
-    anime_name_short: [],
-    anime_synonyms: [],
-    anime_category: ["Action", "Comedy"],
-    version: "v1",
-    censored: "",
-    orginal_name: "",
+    ...(toml.parse(
+      fs.readFileSync(SAMPLE_FILE_FIXTURE, "utf8"),
+    ) as unknown as AnimeStringFormatData),
     ...overrides,
   };
 }
