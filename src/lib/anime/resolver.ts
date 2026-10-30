@@ -93,6 +93,7 @@ export class AnimeResolver {
 
     const titles = await axios.get(TitlesDBUrl, {
       responseType: "arraybuffer",
+      timeout: 30000,
     });
     const titlesXml = JSON.parse(
       convertXmlDoc(zlib.gunzipSync(titles.data).toString(), {

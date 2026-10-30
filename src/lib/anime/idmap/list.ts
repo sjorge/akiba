@@ -77,7 +77,7 @@ export class AnimeIdmapList {
     try {
       this.mappingCache = {};
 
-      const list = await axios.get(ListMapperURL);
+      const list = await axios.get(ListMapperURL, { timeout: 30000 });
       for (const entry of list.data as MiniListEntry[]) {
         const aid = entry.anidb_id;
         if (aid === undefined) continue;

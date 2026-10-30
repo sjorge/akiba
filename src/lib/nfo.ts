@@ -184,16 +184,22 @@ export class TvShowNfo {
     if (includePoster && this.tvShow.poster !== undefined) {
       const posterPath: string = path.join(this.path, "poster.jpg");
       if (!fs.existsSync(posterPath)) {
-        await axios
-          .get(this.tvShow.poster, { responseType: "stream" })
-          .then(async (response) => {
-            const writer = fs.createWriteStream(posterPath, {
-              encoding: "utf8",
-              mode: 0o660,
-            });
-            response.data.pipe(writer);
-            await util.promisify(stream.finished)(writer);
+        try {
+          const response = await axios.get(this.tvShow.poster, {
+            responseType: "stream",
+            timeout: 30000,
           });
+          const writer = fs.createWriteStream(posterPath, {
+            encoding: "utf8",
+            mode: 0o660,
+          });
+          response.data.pipe(writer);
+          await util.promisify(stream.finished)(writer);
+        } catch {
+          // do not leave a partial poster behind
+          fs.rmSync(posterPath, { force: true });
+          return false;
+        }
       }
     }
 

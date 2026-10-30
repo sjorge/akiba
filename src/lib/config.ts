@@ -100,7 +100,11 @@ export function writeConfig(config: Config): boolean {
     if (!fs.existsSync(configFilePath)) {
       fs.mkdirSync(configFilePath, { recursive: true, mode: 0o750 });
     }
-    fs.writeFileSync(configFile, toml.stringify(config), { encoding: "utf8" });
+    fs.writeFileSync(configFile, toml.stringify(config), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    // NOTE: mode only applies to new files, tighten existing ones
     fs.chmodSync(configFile, 0o600);
   } catch {
     return false;
