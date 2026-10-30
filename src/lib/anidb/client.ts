@@ -148,8 +148,7 @@ export class AnidbUDPClient {
   private banned: AnidbError | undefined;
   // what `login` needs to log in again after the server lost the session
   private credentials:
-    | { user: string; pass: string; encoding?: EncodingType }
-    | undefined;
+    { user: string; pass: string; encoding?: EncodingType } | undefined;
 
   /*
    * `clientId`: your client's name, register it here:
