@@ -11,6 +11,8 @@ import type { AniDB_Show } from "anidbjs";
 import type { Config } from "lib/config";
 import type { AnimeId } from "lib/anime";
 
+import { writeFileAtomic } from "lib/fs";
+
 export class AnimeMetadata {
   private anidb: AniDB;
   private cachePath: string;
@@ -67,10 +69,7 @@ export class AnimeMetadata {
       });
 
       // write cache file
-      fs.writeFileSync(showCacheFile, toml.stringify(metadata), {
-        encoding: "utf8",
-        mode: 0o660,
-      });
+      writeFileAtomic(showCacheFile, toml.stringify(metadata), 0o660);
 
       return metadata;
     } catch (_e: unknown) {

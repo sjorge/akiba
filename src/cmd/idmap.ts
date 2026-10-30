@@ -13,6 +13,7 @@ import { deepmergeInto } from "deepmerge-ts";
 import type { Config } from "lib/config";
 import type { LocalMapping } from "lib/anime/idmap/local";
 import { readConfig } from "lib/config";
+import { writeFileAtomic } from "lib/fs";
 import { banner, log } from "lib/logger";
 
 /*
@@ -89,9 +90,7 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
 
   // write local mapping
   try {
-    fs.writeFileSync(mappingFile, toml.stringify(mapping), {
-      encoding: "utf8",
-    });
+    writeFileAtomic(mappingFile, toml.stringify(mapping), 0o660);
     fs.chmodSync(mappingFile, 0o660);
   } catch {
     log("Could not write local mappping file!", "error");
