@@ -30,6 +30,90 @@ export function localUdpPort(hostname: string = os.hostname()): number {
   return 10000 + (hash.readUInt32BE(0) % 50000);
 }
 
+/*
+ * Cut a name to `length` characters, a cut name ends in "~"
+ */
+function truncateName(name: string, length: number): string {
+  return name.length > length
+    ? `${name.substring(0, length).trimEnd()}~`
+    : name;
+}
+
+// NOTE: the file name limit of ext4, APFS, ZFS and SMB
+const NAME_MAX = 255;
+
+/*
+ * Shorten the anime and episode names after a name was too long
+ *
+ * First try (`attempt` 0): find out which name is too long, the anime name
+ * is swapped for its shortest short name, the episode names are cut to fit
+ * the rest of the file name. When both are long, both are done at once.
+ * Second try: the episode names become "Episode N".
+ */
+function shortenNames(
+  data: AnimeStringFormatData,
+  format: string,
+  attempt: number,
+): AnimeStringFormatData {
+  if (attempt > 0) {
+    // strip leading zeros, 013 -> 13
+    const name = `Episode ${data.episode.replace(/\b0+(?=\d)/g, "")}`;
+    return {
+      ...data,
+      episode_name: name,
+      episode_name_romaji: name,
+    };
+  }
+
+  // a name using over half of the file name is considered too long
+  // NOTE: the kanji names are left alone, they are generally short already
+  const animeLength = Math.max(
+    data.anime_name_romaji.length,
+    data.anime_name_english.length,
+  );
+  const episodeLength = Math.max(
+    data.episode_name.length,
+    data.episode_name_romaji.length,
+  );
+  let animeLong = animeLength > NAME_MAX / 2;
+  let episodeLong = episodeLength > NAME_MAX / 2;
+  // neither stands out, blame the longest one
+  if (!animeLong && !episodeLong) {
+    animeLong = animeLength > episodeLength;
+    episodeLong = !animeLong;
+  }
+
+  const result = { ...data };
+  if (animeLong) {
+    const short = data.anime_name_short
+      .filter((name: string) => name !== "")
+      .sort((a: string, b: string) => a.length - b.length)[0];
+    if (short !== undefined) {
+      result.anime_name_romaji = short;
+      result.anime_name_english = short;
+    }
+  }
+  if (episodeLong) {
+    // room left in the file name once the episode names are removed
+    // NOTE: tags are sanitized to ASCII, so a character is a byte
+    const rest = path.basename(
+      animeStringFormat(format, {
+        ...result,
+        episode_name: "",
+        episode_name_romaji: "",
+      }),
+    );
+    const length = Math.max(0, NAME_MAX - Buffer.byteLength(rest) - 1);
+    result.episode_name = truncateName(result.episode_name, length);
+    result.episode_name_romaji = truncateName(
+      result.episode_name_romaji,
+      length,
+    );
+  }
+
+  return result;
+}
+
 export type AniDBMylistState =
   | "internal_storage"
   | "external_storage"
@@ -465,65 +549,81 @@ export class AnimeRenamer {
 
     const sourcePath = episode.path;
     const targetPath = path.resolve(this.target);
-    const destinationPath = path.join(
-      this.target,
-      animeStringFormat(this.format, episode.data),
-    );
 
-    // NOTE: the target may be relative (e.g. ../renamed), but the formatted
-    // name must stay inside it, tag values come from remote data
-    const relativePath = path.relative(
-      targetPath,
-      path.resolve(destinationPath),
-    );
-    if (
-      relativePath === "" ||
-      relativePath.split(path.sep)[0] === ".." ||
-      path.isAbsolute(relativePath)
-    )
-      throw new Error(
-        `Refusing to rename ${sourcePath}: ${destinationPath} is outside of ${targetPath}!`,
+    // NOTE: a name that is too long for the filesystem is not known upfront,
+    // so try, and on ENAMETOOLONG retry with shorter names (see shortenNames)
+    let data = episode.data;
+    let destinationPath: string;
+    for (let attempt = 0; ; attempt++) {
+      destinationPath = path.join(
+        this.target,
+        animeStringFormat(this.format, data),
       );
 
-    // file already correct path
-    if (sourcePath == destinationPath) {
-      episode.destination_path = destinationPath;
-      episode.action = "uptodate";
-      return episode;
-    }
+      // NOTE: the target may be relative (e.g. ../renamed), but the formatted
+      // name must stay inside it, tag values come from remote data
+      const relativePath = path.relative(
+        targetPath,
+        path.resolve(destinationPath),
+      );
+      if (
+        relativePath === "" ||
+        relativePath.split(path.sep)[0] === ".." ||
+        path.isAbsolute(relativePath)
+      )
+        throw new Error(
+          `Refusing to rename ${sourcePath}: ${destinationPath} is outside of ${targetPath}!`,
+        );
 
-    // abort if destinationPath exists and !overwrite
-    if (fs.existsSync(destinationPath) && !overwrite) return episode;
-
-    // create parent path
-    if (!dryRun)
-      fs.mkdirSync(path.dirname(destinationPath), {
-        recursive: true,
-        mode: 0o750,
-      });
-
-    // rename episode
-    if (copy) {
-      // NOTE: fs.copyFileSync overwrites by default
-      if (!dryRun) fs.copyFileSync(sourcePath, destinationPath);
-
-      episode.destination_path = destinationPath;
-      episode.action = "copy";
-    } else {
-      try {
-        if (!dryRun) fs.renameSync(sourcePath, destinationPath);
-      } catch (_e: unknown) {
-        const e = _e as NodeJS.ErrnoException;
-        if (e.code !== "EXDEV") throw e;
-
-        // fallback to copy for filesystem boundaries
-        if (!dryRun) {
-          fs.copyFileSync(sourcePath, destinationPath);
-          fs.unlinkSync(sourcePath);
-        }
+      // file already correct path
+      if (sourcePath == destinationPath) {
+        episode.destination_path = destinationPath;
+        episode.action = "uptodate";
+        return episode;
       }
 
-      episode.destination_path = destinationPath;
+      // abort if destinationPath exists and !overwrite
+      if (fs.existsSync(destinationPath) && !overwrite) return episode;
+
+      try {
+        // create parent path
+        if (!dryRun)
+          fs.mkdirSync(path.dirname(destinationPath), {
+            recursive: true,
+            mode: 0o750,
+          });
+
+        // rename episode
+        if (copy) {
+          // NOTE: fs.copyFileSync overwrites by default
+          if (!dryRun) fs.copyFileSync(sourcePath, destinationPath);
+        } else {
+          try {
+            if (!dryRun) fs.renameSync(sourcePath, destinationPath);
+          } catch (_e: unknown) {
+            const e = _e as NodeJS.ErrnoException;
+            if (e.code !== "EXDEV") throw e;
+
+            // fallback to copy for filesystem boundaries
+            if (!dryRun) {
+              fs.copyFileSync(sourcePath, destinationPath);
+              fs.unlinkSync(sourcePath);
+            }
+          }
+        }
+        break;
+      } catch (_e: unknown) {
+        const e = _e as NodeJS.ErrnoException;
+        if (e.code !== "ENAMETOOLONG" || attempt >= 2) throw e;
+
+        data = shortenNames(data, this.format, attempt);
+      }
+    }
+
+    episode.destination_path = destinationPath;
+    if (copy) {
+      episode.action = "copy";
+    } else {
       episode.action = "move";
 
       if (symlink) {

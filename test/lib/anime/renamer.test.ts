@@ -256,4 +256,63 @@ test("AnimeRenamer.rename keeps destinations inside the target", async (): Promi
   ).toBe(true);
 });
 
+test("AnimeRenamer.rename shortens an episode name that is too long", async (): Promise<void> => {
+  const f = fixture("{anime_name_romaji}/{episode_name}.{filetype}");
+  const result = await f.renamer.rename(
+    await f.episode({ episode_name: "a".repeat(300) }),
+  );
+  const destination = result.destination_path as string;
+  expect(result.action).toBe("move");
+  expect(path.basename(destination).endsWith("~.mkv")).toBe(true);
+  expect(fs.existsSync(f.source)).toBe(false);
+  expect(fs.existsSync(destination)).toBe(true);
+});
+
+test("AnimeRenamer.rename swaps a long anime name for its short name", async (): Promise<void> => {
+  const f = fixture(
+    "{anime_name_romaji}/{anime_name_romaji} - {episode_name}.{filetype}",
+  );
+  const result = await f.renamer.rename(
+    await f.episode({
+      anime_name_romaji: "a".repeat(300),
+      anime_name_short: ["", "Shorty", "Longer one"],
+      episode_name: "Name",
+    }),
+  );
+  expect(result.destination_path).toBe(
+    path.join(f.target, "Shorty", "Shorty - Name.mkv"),
+  );
+
+  // both long: short name and a cut episode name at once
+  const both = fixture(
+    "{anime_name_romaji}/{anime_name_romaji} - {episode_name}.{filetype}",
+  );
+  const bothResult = await both.renamer.rename(
+    await both.episode({
+      anime_name_romaji: "a".repeat(300),
+      anime_name_short: ["Shorty"],
+      episode_name: "b".repeat(300),
+    }),
+  );
+  const name = path.basename(bothResult.destination_path as string);
+  expect(name.startsWith("Shorty - b")).toBe(true);
+  expect(name.endsWith("~.mkv")).toBe(true);
+});
+
+test("AnimeRenamer.rename falls back to Episode N", async (): Promise<void> => {
+  // an episode name of 255 bytes cannot be cut to fit with a long anime name
+  const f = fixture("{anime_name_romaji} - {episode_name}.{filetype}");
+  const result = await f.renamer.rename(
+    await f.episode({
+      anime_name_romaji: "a".repeat(235),
+      anime_name_short: [],
+      episode: "013",
+      episode_name: "b".repeat(100),
+    }),
+  );
+  expect(path.basename(result.destination_path as string)).toBe(
+    `${"a".repeat(235)} - Episode 13.mkv`,
+  );
+});
+
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
