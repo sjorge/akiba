@@ -250,6 +250,25 @@ test("AnimeRenamer.rename moves, copies, links and skips", async (): Promise<voi
   expect(fs.existsSync(f.source)).toBe(false);
 });
 
+test("AnimeRenamer.rename copy leaves the source hash record alone", async (): Promise<void> => {
+  // NOTE: regression for a copy sharing one hash record between source and destination
+  const f = fixture();
+  const episode = await f.episode();
+  const sourceLink = episode.ed2khash.link;
+  expect(sourceLink).toContain("|source.mkv|");
+
+  const result = await f.renamer.rename(episode, false, true);
+  expect(result.action).toBe("copy");
+
+  const source = await f.renamer.identify(f.source, false, true);
+  expect(source.ed2khash.link).toBe(sourceLink);
+  expect(source.ed2khash.hash).toBe(episode.ed2khash.hash);
+
+  const copy = await f.renamer.identify(f.destination, false, true);
+  expect(copy.ed2khash.link).toContain("|13.mkv|");
+  expect(copy.ed2khash.hash).toBe(episode.ed2khash.hash);
+});
+
 test("AnimeRenamer.rename handles moves across devices", async (): Promise<void> => {
   // only the move of `source` fails, the cache writes rename as usual
   function crossDevice(source: string): ReturnType<typeof spyOn> {

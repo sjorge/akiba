@@ -639,12 +639,12 @@ export class AnimeRenamer {
 
     // update hashes
     if (!dryRun) {
-      // update link in ed2hash
+      // update link in ed2hash, a copy keeps the source record as it is
       const ed2hash = this.hashCache[episode.path];
-      ed2hash.link = `ed2k://|file|${path.basename(episode.destination_path)}|${ed2hash.size}|${ed2hash.hash}|/`;
+      const link = `ed2k://|file|${path.basename(episode.destination_path)}|${ed2hash.size}|${ed2hash.hash}|/`;
 
       if (!copy) delete this.hashCache[episode.path];
-      this.hashCache[episode.destination_path] = ed2hash;
+      this.hashCache[episode.destination_path] = { ...ed2hash, link };
       this.writeHashCache();
     }
 
