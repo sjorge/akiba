@@ -1,0 +1,79 @@
+id = 100
+ageRestricted = false
+type = "TV Series"
+episodeCount = 3
+startDate = "2020-01"
+endDate = "2020-03-25"
+description = "A plot"
+picture = "12345.jpg"
+url = "https://anidb.net/anime/100"
+creators = [ ]
+tags = [ ]
+characters = [ ]
+
+[[titles]]
+title = "Test `Anime` EN"
+type = "official"
+language = "en"
+
+[[titles]]
+title = "Test `Anime`"
+type = "main"
+language = "x-jat"
+
+[[titles]]
+title = "テスト"
+type = "official"
+language = "ja"
+
+[[episodes]]
+id = 1_001
+updatedAt = "2020-01-01"
+episodeNumber = "1"
+type = 1
+length = 24
+airDate = "2020-01-08"
+
+  [[episodes.titles]]
+  title = "First `Ep`"
+  language = "en"
+
+  [[episodes.titles]]
+  title = "第一話"
+  language = "ja"
+
+[[episodes]]
+id = 1_002
+updatedAt = "2020-01-01"
+episodeNumber = "2"
+type = 1
+length = 24
+airDate = "2020-01"
+
+  [[episodes.titles]]
+  title = "Second"
+  language = "en"
+
+[[episodes]]
+id = 1_003
+updatedAt = "2020-01-01"
+episodeNumber = "3"
+type = 1
+length = 24
+airDate = ""
+
+  [[episodes.titles]]
+  title = "Third"
+  language = "en"
+
+[[episodes]]
+id = 2_001
+updatedAt = "2020-01-01"
+episodeNumber = "S1"
+type = 2
+length = 24
+airDate = "2020-04-01"
+
+  [[episodes.titles]]
+  title = "Special"
+  language = "en"

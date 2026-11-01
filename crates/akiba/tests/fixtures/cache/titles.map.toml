@@ -1,0 +1,39 @@
+[[1]]
+title = "Anime One"
+type = "official"
+language = "en"
+
+[[1]]
+title = "Anime One"
+type = "main"
+language = "x-jat"
+
+[[100]]
+title = 'Test `Anime` "EN"'
+type = "official"
+language = "en"
+
+[[100]]
+title = "Test `Anime`"
+type = "main"
+language = "x-jat"
+
+[[100]]
+title = "テスト"
+type = "official"
+language = "ja"
+
+[[10914]]
+title = "Trinity Seven: Nanatsu no Taizai to Nana Madoushi"
+type = "main"
+language = "x-jat"
+
+[[10914]]
+title = "トリニティセブン 七つの大罪と七魔道士"
+type = "official"
+language = "ja"
+
+[[10914]]
+title = "Trinity Seven"
+type = "official"
+language = "en"

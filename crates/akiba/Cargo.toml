@@ -1,0 +1,29 @@
+[package]
+name = "akiba"
+description = "Anime library organiser and metadata writer"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "akiba"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+akiba-cmd-configure = { path = "../akiba-cmd-configure" }
+akiba-cmd-idmap = { path = "../akiba-cmd-idmap" }
+akiba-cmd-rename = { path = "../akiba-cmd-rename" }
+akiba-cmd-write-nfo = { path = "../akiba-cmd-write-nfo" }
+akiba-core = { path = "../akiba-core" }
+clap.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
