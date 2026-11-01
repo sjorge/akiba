@@ -158,15 +158,16 @@ export async function renameAction(
           "step",
         );
         try {
+          const confirmed = await animeRenamer.setMylistState(
+            episode,
+            mylistState as AniDBMylistState,
+          );
           log(
             `${path.basename(episodeFile)}: Updating mylist state to ${mylistState} ...`,
-            (await animeRenamer.setMylistState(
-              episode,
-              mylistState as AniDBMylistState,
-            ))
-              ? "done"
-              : "error",
+            confirmed ? "done" : "error",
           );
+          // the file is still renamed below, only the exit code reports it
+          if (!confirmed) process.exitCode = 1;
         } catch (_e: unknown) {
           const e = _e as AnidbError;
           log(
@@ -182,13 +183,24 @@ export async function renameAction(
       }
 
       log(`${path.basename(episodeFile)}: Renaming ...`, "step");
-      const renamerResult = await animeRenamer.rename(
-        episode,
-        force,
-        copy,
-        symlink,
-        dryRun,
-      );
+      let renamerResult: AnimeRenamerEpisode;
+      try {
+        renamerResult = await animeRenamer.rename(
+          episode,
+          force,
+          copy,
+          symlink,
+          dryRun,
+        );
+      } catch (_e: unknown) {
+        // a failure of this file only, the remaining files are still renamed
+        const e = _e as Error;
+        log(`${path.basename(episodeFile)}: Renaming ...`, "error");
+        log(e.message, "error");
+        process.exitCode = 1;
+        continue;
+      }
+
       if (renamerResult.destination_path !== undefined) {
         let message = "";
         if (renamerResult.action == "uptodate") {
