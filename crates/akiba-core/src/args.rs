@@ -14,6 +14,19 @@ pub fn number_arg(value: &str) -> Result<i64, String> {
     parse_i64(value).ok_or_else(|| "Expecting a number.".to_owned())
 }
 
+/// The id stored for `blacklist`.
+const BLACKLIST: i64 = -1;
+
+/// Value parser for the id options that also take the marker: a number, or
+/// exactly `blacklist`, which is stored as -1. The word must match as typed, so
+/// `Blacklist` and padded spellings are rejected.
+pub fn id_or_blacklist(value: &str) -> Result<i64, String> {
+    if value == "blacklist" {
+        return Ok(BLACKLIST);
+    }
+    parse_i64(value).ok_or_else(|| "Expecting a number or blacklist.".to_owned())
+}
+
 /// `path.resolve`: an absolute path without `.`, `..` and repeated or trailing
 /// slashes. Symlinks are not resolved.
 pub fn resolve(path: &Path) -> PathBuf {
@@ -74,6 +87,24 @@ mod tests {
                 number_arg(bad),
                 Err("Expecting a number.".to_owned()),
                 "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn id_or_blacklist_takes_a_number_or_the_marker() {
+        assert_eq!(id_or_blacklist("12"), Ok(12));
+        assert_eq!(id_or_blacklist("-1"), Ok(-1));
+        assert_eq!(id_or_blacklist("blacklist"), Ok(-1));
+    }
+
+    #[test]
+    fn id_or_blacklist_rejects_other_spellings() {
+        for bad in ["Blacklist", "blacklisted", "", "junk", "x1", " blacklist "] {
+            assert_eq!(
+                id_or_blacklist(bad),
+                Err("Expecting a number or blacklist.".to_owned()),
+                "{bad:?}"
             );
         }
     }

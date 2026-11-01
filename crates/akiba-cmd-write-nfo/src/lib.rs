@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use akiba_core::anime::AnimeId;
-use akiba_core::args::{number_arg, path_arg};
+use akiba_core::args::{id_or_blacklist, number_arg, path_arg};
 use akiba_core::cache::paths::aid_file;
 use akiba_core::cache::CacheFile;
 use akiba_core::config::{Command as ConfigCommand, Config, ConfigLoadError};
@@ -51,12 +51,22 @@ pub struct Args {
     #[arg(long, value_name = "id", value_parser = number_arg)]
     aid: Option<i64>,
 
-    /// specify the anilist id instead of trying to auto detect
-    #[arg(long, value_name = "id", value_parser = number_arg)]
+    /// specify the anilist id instead of trying to auto detect, `blacklist` (or -1) means this anime has no entry there, so it is not looked up for this run
+    #[arg(
+        long,
+        value_name = "id",
+        value_parser = id_or_blacklist,
+        allow_negative_numbers = true
+    )]
     anilistid: Option<i64>,
 
-    /// specify the themoviedb series id instead of trying to auto detect (movie ids are not supported)
-    #[arg(long, value_name = "id", value_parser = number_arg)]
+    /// specify the themoviedb series id instead of trying to auto detect (movie ids are not supported), `blacklist` (or -1) means this anime has no entry there, so it is not looked up for this run
+    #[arg(
+        long,
+        value_name = "id",
+        value_parser = id_or_blacklist,
+        allow_negative_numbers = true
+    )]
     tmdbid: Option<i64>,
 
     /// force retrieve metadata
@@ -392,41 +402,4 @@ fn write_show(
 }
 
 #[cfg(test)]
-mod tests {
-    use akiba_core::config::Config;
-    use akiba_test_support::{Env, Outcome};
-
-    use super::*;
-
-    fn write_nfo(env: &Env, args: &[&str]) -> Outcome {
-        env.run::<Args>(args, run)
-    }
-
-    /// Writes the config the command needs: the HTTP client, no poster.
-    fn configure() {
-        let mut config = Config::load().expect("config");
-        config.anidb.http_client.name = Some("http".to_owned());
-        config.anidb.http_client.version = Some(1);
-        config.anidb.poster = false;
-        config.save().expect("save config");
-    }
-
-    #[test]
-    fn fails_for_a_missing_directory_and_missing_configuration() {
-        let env = Env::new();
-        let out = write_nfo(&env, &["/nope"]);
-        assert_eq!(out.code, 1);
-        assert!(out.stdout.contains("AniDB HTTP Client not configured!"));
-
-        configure();
-        let out = write_nfo(&env, &["/nope"]);
-        assert_eq!(out.code, 1);
-        assert!(out.stdout.contains("Directory \"/nope\" does not exist!"));
-    }
-
-    #[test]
-    fn rejects_bad_ids() {
-        let env = Env::new();
-        assert_eq!(write_nfo(&env, &["/tmp", "--aid", "abc"]).code, 1);
-    }
-}
+mod tests;

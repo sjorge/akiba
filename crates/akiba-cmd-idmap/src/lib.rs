@@ -4,22 +4,11 @@ use std::fs::DirBuilder;
 use std::os::unix::fs::DirBuilderExt;
 use std::process::ExitCode;
 
+use akiba_core::args::id_or_blacklist;
 use akiba_core::config::{Config, ConfigLoadError};
 use akiba_core::idmap::LocalMap;
 use akiba_core::logger::{self, Level};
-use akiba_core::num::parse_i64;
 use clap::Args as ClapArgs;
-
-/// The id stored for `blacklist`.
-const BLACKLIST: i64 = -1;
-
-/// Value parser for the id options: a number, or exactly `blacklist` for -1.
-fn id_or_blacklist(value: &str) -> Result<i64, String> {
-    if value == "blacklist" {
-        return Ok(BLACKLIST);
-    }
-    parse_i64(value).ok_or_else(|| "Expecting a number or blacklist.".to_owned())
-}
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(ClapArgs)]
