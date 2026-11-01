@@ -70,7 +70,7 @@ impl Request {
 /// Escapes a request value like an HTML form: `&` becomes `&amp;`, and each
 /// newline becomes `<br />`. `<br />` has no `&`, so the order of the two
 /// rules does not matter.
-fn escape_value(value: &str) -> String {
+pub(crate) fn escape_value(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     let mut chars = value.chars().peekable();
     while let Some(c) = chars.next() {

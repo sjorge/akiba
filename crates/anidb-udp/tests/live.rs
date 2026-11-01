@@ -38,6 +38,15 @@
 //!   that the client does not know about, then a lookup that must recover the
 //!   session (ENCRYPT, encrypted AUTH and one retry).
 //!
+//! Every test prints its name first and turns on the client's trace, one line
+//! per event on stderr prefixed with `trace:` (run with `--nocapture`, as
+//! below): each request with its secrets shown as `***`, each datagram
+//! received, timeouts, key and session changes, keep-alive and rate-limiter
+//! waits. No password, API key, salt, session key or ciphertext is ever traced,
+//! so the output can be pasted as it is. The recovery test also prints
+//! `live: raw LOGOUT` and `live: lookup after session loss` around the session
+//! loss.
+//!
 //! ```text
 //! AKIBA_LIVE_USER=.. AKIBA_LIVE_PASS=.. AKIBA_LIVE_CLIENT=.. [AKIBA_LIVE_APIKEY=..] \
 //!   cargo test -p anidb-udp --test live -- --ignored --nocapture --test-threads=1
@@ -185,6 +194,7 @@ fn login(credentials: &Credentials, api_key: Option<&str>) -> (Client, Log) {
     let mut client = Client::new(config);
     let log: Log = Arc::default();
     let sink = Arc::clone(&log);
+    client.set_trace(|line| eprintln!("trace: {line}"));
     client.set_logger(move |message| {
         eprintln!("anidb: {message}");
         sink.lock()
@@ -249,6 +259,7 @@ fn auth_file_logout() {
         return;
     };
     let _turn = turn();
+    eprintln!("live test: auth_file_logout");
     check_auth_file_logout(&credentials, None);
 }
 
@@ -259,6 +270,7 @@ fn read_only_commands() {
         return;
     };
     let _turn = turn();
+    eprintln!("live test: read_only_commands");
     check_read_only_commands(&credentials, None);
 }
 
@@ -272,6 +284,7 @@ fn encrypted_auth_file_logout() {
         return;
     };
     let _turn = turn();
+    eprintln!("live test: encrypted_auth_file_logout");
     check_auth_file_logout(&credentials, Some(&key));
 }
 
@@ -285,6 +298,7 @@ fn encrypted_read_only_commands() {
         return;
     };
     let _turn = turn();
+    eprintln!("live test: encrypted_read_only_commands");
     check_read_only_commands(&credentials, Some(&key));
 }
 
@@ -301,6 +315,7 @@ fn encrypted_session_recovers_after_session_loss() {
         return;
     };
     let _turn = turn();
+    eprintln!("live test: encrypted_session_recovers_after_session_loss");
     let (mut client, log) = login(&credentials, Some(&key));
 
     // the session works before the loss
@@ -308,6 +323,7 @@ fn encrypted_session_recovers_after_session_loss() {
 
     // A raw LOGOUT ends the session on the server only. The client waits the
     // rate-limit interval before it, as it does for every request.
+    eprintln!("live: raw LOGOUT");
     client
         .call(&Request::new("LOGOUT"), &[ResponseCode::LoggedOut])
         .live();
@@ -318,6 +334,7 @@ fn encrypted_session_recovers_after_session_loss() {
 
     // The lookup gets 501 or 506, or a reply it cannot decrypt. The client then
     // logs in again (ENCRYPT, then encrypted AUTH) and retries the lookup once.
+    eprintln!("live: lookup after session loss");
     assert_known_file(&mut client);
     assert!(
         log.lock()

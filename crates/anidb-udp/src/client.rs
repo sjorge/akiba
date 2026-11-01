@@ -21,6 +21,7 @@ use crate::error::Error;
 use crate::file::{self, FileReply};
 use crate::mask::{AnimeFields, FileFields};
 use crate::mylist::{MylistEntry, MylistState};
+use crate::trace::{describe_error, Trace};
 use crate::transport::{Logger, Transport};
 use crate::wire::{Request, Response};
 
@@ -118,6 +119,9 @@ pub struct Client {
     config: ClientConfig,
     transport: Option<Transport>,
     log: Option<Logger>,
+    /// The trace callback, with the creation of the client as time zero.
+    trace: Option<Logger>,
+    created: Instant,
     credentials: Option<Credentials>,
     api_key: Option<String>,
     /// Set after a ban (504 or 555). Nothing is sent to `AniDB` again.
@@ -145,6 +149,8 @@ impl Client {
             config,
             transport: None,
             log: None,
+            trace: None,
+            created: Instant::now(),
             credentials: None,
             api_key: None,
             banned: None,
@@ -161,6 +167,29 @@ impl Client {
             transport.set_logger(Some(Arc::clone(&log)));
         }
         self.log = Some(log);
+    }
+
+    /// Sets the callback that receives trace lines: one verbose line per event
+    /// (requests, replies, timeouts, key and session changes, keep-alive and
+    /// rate-limiter waits), each prefixed with the milliseconds since the client
+    /// was created. Off by default, and separate from [`Client::set_logger`].
+    ///
+    /// Passwords, API keys, salts, session keys and ciphertext never appear in a
+    /// line: secret parameters and reply values show as `***`, and datagrams are
+    /// only counted in bytes.
+    pub fn set_trace(&mut self, trace: impl Fn(&str) + Send + Sync + 'static) {
+        let trace: Logger = Arc::new(trace);
+        if let Some(transport) = &mut self.transport {
+            transport.set_trace(Some(Arc::clone(&trace)), self.created);
+        }
+        self.trace = Some(trace);
+    }
+
+    /// Passes a trace line, which is only built when tracing is on.
+    fn trace(&self, line: impl FnOnce() -> String) {
+        if let Some(sink) = &self.trace {
+            Trace::new(Arc::clone(sink), self.created).emit(&line());
+        }
     }
 
     fn warn(&self, message: &str) {
@@ -202,11 +231,18 @@ impl Client {
                 self.config.client
             ));
         }
-        let transport = Transport::open(&self.config, self.log.clone())?;
+        let mut transport = Transport::open(&self.config, self.log.clone())?;
+        if let Some(trace) = &self.trace {
+            transport.set_trace(Some(Arc::clone(trace)), self.created);
+        }
         self.transport = Some(transport);
         self.api_key = api_key.filter(|key| !key.is_empty()).map(str::to_owned);
 
-        let result = self.setup(user, pass);
+        self.trace(|| format!("login started, encrypted={}", self.api_key.is_some()));
+        let result = self.setup(user, pass, "login");
+        if let Err(error) = &result {
+            self.trace(|| format!("login failed: {}", describe_error(error)));
+        }
         if result.is_err() {
             self.close();
         }
@@ -215,12 +251,14 @@ impl Client {
 
     /// ENCRYPT first when there is an api key, so that the password never goes
     /// out in the clear, then AUTH. The first login and every re-login use this.
-    fn setup(&mut self, user: &str, pass: &str) -> Result<(), Error> {
+    fn setup(&mut self, user: &str, pass: &str, phase: &str) -> Result<(), Error> {
         // ENCRYPT needs no session, and a stale one must not be sent with it
         self.transport_mut()?.session = None;
         if let Some(api_key) = self.api_key.clone() {
+            self.trace(|| format!("{phase} step ENCRYPT"));
             self.encrypt(user, &api_key)?;
         }
+        self.trace(|| format!("{phase} step AUTH"));
         self.login(user, pass)
     }
 
@@ -236,6 +274,7 @@ impl Client {
             Error::BadResponse(format!("ENCRYPT reply has no salt: {}", response.message))
         })?;
         self.transport_mut()?.key = Some(Key::new(api_key, salt));
+        self.trace(|| "encryption key set".to_owned());
         Ok(())
     }
 
@@ -245,7 +284,8 @@ impl Client {
     /// AUTH encrypted. Without an api key it is just an AUTH.
     fn relogin(&mut self, user: &str, pass: &str) -> Result<(), Error> {
         self.transport_mut()?.key = None;
-        self.setup(user, pass)
+        self.trace(|| "encryption key dropped".to_owned());
+        self.setup(user, pass, "re-login")
     }
 
     /// AUTH `user=&pass=&protover=&client=&clientver=&nat=1&comp=1&enc=UTF8`.
@@ -304,6 +344,7 @@ impl Client {
             user: user.to_owned(),
             pass: pass.to_owned(),
         });
+        self.trace(|| format!("logged in, behind_nat={}", self.behind_nat));
         Ok(())
     }
 
@@ -322,6 +363,7 @@ impl Client {
             transport.session = None;
         }
         self.credentials = None;
+        self.trace(|| "session cleared by LOGOUT".to_owned());
         let response = result?;
         if response.code == ResponseCode::NotLoggedIn {
             return Err(Error::from_reply(
@@ -382,6 +424,13 @@ impl Client {
         if self.keep_alive_due() != Some(Duration::ZERO) {
             return Ok(false);
         }
+        let command = if self.behind_nat { "PING" } else { "UPTIME" };
+        self.trace(|| {
+            format!(
+                "keep-alive due after {} ms idle, sending {command}",
+                self.last_request.elapsed().as_millis()
+            )
+        });
         if self.behind_nat {
             self.ping()?;
         } else {
@@ -526,12 +575,33 @@ impl Client {
             (Some(credentials), true) => {
                 let Credentials { user, pass } = credentials.clone();
                 self.warn("AniDB lost the session, logging in again");
-                match self
-                    .relogin(&user, &pass)
-                    .and_then(|()| self.send(request, expected))
-                {
-                    Ok(response) => return Ok(response),
-                    Err(e) => e,
+                self.trace(|| {
+                    format!(
+                        "session lost on {}: {}, re-login started",
+                        request.command,
+                        describe_error(&error)
+                    )
+                });
+                let relogin = self.relogin(&user, &pass);
+                self.trace(|| match &relogin {
+                    Ok(()) => format!("re-login finished, retrying {}", request.command),
+                    Err(e) => format!("re-login failed: {}", describe_error(e)),
+                });
+                match relogin.and_then(|()| self.send(request, expected)) {
+                    Ok(response) => {
+                        self.trace(|| format!("retry of {} succeeded", request.command));
+                        return Ok(response);
+                    }
+                    Err(e) => {
+                        self.trace(|| {
+                            format!(
+                                "retry of {} failed: {}",
+                                request.command,
+                                describe_error(&e)
+                            )
+                        });
+                        e
+                    }
                 }
             }
             _ => error,
@@ -588,6 +658,9 @@ impl Client {
     }
 
     fn close(&mut self) {
+        if self.transport.is_some() {
+            self.trace(|| "connection closed".to_owned());
+        }
         self.transport = None;
         self.credentials = None;
     }

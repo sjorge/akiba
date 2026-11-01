@@ -15,6 +15,7 @@ use crate::compression::{decompress, is_compressed};
 use crate::crypto::Key;
 use crate::error::Error;
 use crate::rate_limiter::RateLimiter;
+use crate::trace::{describe_reply, redact_params, Trace};
 use crate::wire::{make_tag, parse, Request, Response, TAG_LENGTH};
 
 /// Receives warnings and notes of the client; the caller decides where they go.
@@ -38,6 +39,7 @@ pub struct Transport {
     /// When set, all requests are encrypted and all replies decrypted.
     pub key: Option<Key>,
     log: Option<Logger>,
+    trace: Option<Trace>,
 }
 
 impl std::fmt::Debug for Transport {
@@ -83,12 +85,32 @@ impl Transport {
             session: None,
             key: None,
             log,
+            trace: None,
         })
     }
 
     /// Sets the callback for warnings.
     pub fn set_logger(&mut self, log: Option<Logger>) {
         self.log = log;
+    }
+
+    /// Sets the callback for trace lines, or turns tracing off with `None`.
+    /// `since` is the time the milliseconds of the lines count from, the
+    /// creation of the client for a [`crate::Client`]. Trace lines are verbose,
+    /// one per event, and never contain a password, an API key, a salt, a
+    /// session key or ciphertext, see the README. The first line names the
+    /// local port.
+    pub fn set_trace(&mut self, log: Option<Logger>, since: Instant) {
+        self.trace = log.map(|sink| Trace::new(sink, since));
+        let port = self.local_port().ok();
+        self.trace(|| format!("tracing on: local port {port:?}, peer {}", self.peer));
+    }
+
+    /// Passes a trace line, which is only built when tracing is on.
+    pub(crate) fn trace(&self, line: impl FnOnce() -> String) {
+        if let Some(trace) = &self.trace {
+            trace.emit(&line());
+        }
     }
 
     pub(crate) fn warn(&self, message: &str) {
@@ -118,7 +140,16 @@ impl Transport {
     ///
     /// Returns [`Error::Timeout`] when no reply arrives after all retries, [`Error::BadResponse`] for a reply that cannot be parsed, and [`Error::Io`] for socket failures.
     pub fn request(&mut self, request: &Request) -> Result<Response, Error> {
-        self.limiter.wait();
+        let waited = self.limiter.wait();
+        if !waited.is_zero() {
+            self.trace(|| {
+                format!(
+                    "waited {} ms before {}",
+                    waited.as_millis(),
+                    request.command
+                )
+            });
+        }
 
         let tag = make_tag();
         let text = request.encode(self.session.as_deref(), &tag);
@@ -127,29 +158,47 @@ impl Transport {
             None => text.into_bytes(),
         };
         self.socket.send(&payload)?;
+        let sent = Instant::now();
+        self.trace(|| {
+            format!(
+                "send {} tag={tag} encrypted={} length={} params={}",
+                request.command,
+                self.key.is_some(),
+                payload.len(),
+                redact_params(request, self.session.is_some(), &tag)
+            )
+        });
 
-        let deadline = Instant::now() + self.timeout;
+        let deadline = sent + self.timeout;
         let mut buffer = [0_u8; RECV_BUFFER];
         loop {
             let left = deadline.saturating_duration_since(Instant::now());
             if left.is_zero() {
-                return Err(self.timed_out());
+                return Err(self.timed_out(request, sent));
             }
             self.socket.set_read_timeout(Some(left))?;
             let length = match self.socket.recv(&mut buffer) {
                 Ok(length) => length,
                 Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
-                    return Err(self.timed_out());
+                    return Err(self.timed_out(request, sent));
                 }
                 Err(e) => return Err(Error::Io(e)),
             };
-            if let Some(response) = self.handle(&buffer[..length], &tag)? {
+            if let Some(response) = self.handle(&buffer[..length], &tag, sent)? {
                 return Ok(response);
             }
         }
     }
 
-    fn timed_out(&self) -> Error {
+    fn timed_out(&self, request: &Request, sent: Instant) -> Error {
+        // a request is never sent again by the transport
+        self.trace(|| {
+            format!(
+                "timeout: {} got no reply after {} ms, retries=0",
+                request.command,
+                sent.elapsed().as_millis()
+            )
+        });
         Error::Timeout {
             message: format!(
                 "{} no reply from {} within {:?}",
@@ -165,12 +214,29 @@ impl Transport {
     /// A reply may be encrypted (after ENCRYPT) and compressed (two zero bytes
     /// first, after `comp=1`). It is decrypted first, then decompressed. The tag
     /// in front of it says which request it answers.
-    fn handle(&mut self, datagram: &[u8], tag: &str) -> Result<Option<Response>, Error> {
+    fn handle(
+        &mut self,
+        datagram: &[u8],
+        tag: &str,
+        sent: Instant,
+    ) -> Result<Option<Response>, Error> {
         let mut data = datagram.to_vec();
+        let encrypted = self.key.is_some();
         if let Some(key) = &self.key {
             match key.decrypt(&data) {
                 Ok(plain) => data = plain,
                 Err(e) => {
+                    // only the length of the ciphertext is traced, and the
+                    // bytes as plain text when they parse as a reply
+                    self.trace(|| {
+                        format!(
+                            "recv length={} after {} ms: decrypt failed, as a plain reply: {}",
+                            datagram.len(),
+                            sent.elapsed().as_millis(),
+                            describe_reply(&String::from_utf8_lossy(datagram))
+                        )
+                    });
+                    self.trace(|| "encryption turned off for this connection".to_owned());
                     // most likely AniDB dropped encryption, so stop using it
                     self.key = None;
                     self.warn(
@@ -180,19 +246,30 @@ impl Transport {
                 }
             }
         }
-        if is_compressed(&data) {
+        let compressed = is_compressed(&data);
+        if compressed {
             data = decompress(&data)?;
         }
         let text = String::from_utf8_lossy(&data);
+        let matched = |text: &str| {
+            format!(
+                "recv length={} after {} ms decrypted={encrypted} compressed={compressed} {}",
+                datagram.len(),
+                sent.elapsed().as_millis(),
+                describe_reply(text)
+            )
+        };
 
         let tagged = text.len() > TAG_LENGTH
             && text.is_char_boundary(TAG_LENGTH)
             && &text[..TAG_LENGTH] == tag
             && text.as_bytes()[TAG_LENGTH] == b' ';
         if tagged || is_untagged_error(&text) {
+            self.trace(|| matched(&text));
             return parse(&text).map(Some);
         }
         // a reply to an earlier request that timed out, or noise
+        self.trace(|| format!("{} (dropped, not the reply to tag {tag})", matched(&text)));
         Ok(None)
     }
 }

@@ -32,6 +32,7 @@ pub mod mylist;
 pub mod rate_limiter;
 pub mod responses;
 pub mod simple;
+mod trace;
 pub mod transport;
 mod types;
 pub mod wire;

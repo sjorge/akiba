@@ -80,6 +80,20 @@ Commands take `IdOrName` (an id or a name) where AniDB accepts either, and the t
 
 To add a command, build a `Request` with `Request::new(..).param(..)`, pass the reply codes it accepts to `Client::call`, and decode `Response::lines`.
 
+## Tracing
+
+`Client::set_trace` takes a callback that receives one verbose line per event, each prefixed with the milliseconds since the client was created. It is off by default and separate from `set_logger`, which only gets warnings. The first line names the local port. The live tests turn it on (`trace:` on stderr, see `--nocapture`).
+
+```rust
+# use anidb_udp::{Client, ClientConfig};
+let mut client = Client::new(ClientConfig::new("yourclient", 1));
+client.set_trace(|line| eprintln!("trace: {line}"));
+```
+
+Traced: every request (command, tag, encrypted or not, datagram length, parameters), every datagram received (length, time since the request, decrypted, compressed, reply code, tag and message), datagrams that cannot be decrypted (their length, and the reply code and tag when the raw bytes are a plain reply, such as the 506 a server sends after it dropped the session), timeouts, encryption key changes, login, session loss and re-login steps, keep-alive and rate-limiter waits.
+
+**No secret is ever traced.** Parameters named `pass`, `s`, or like a key, salt, secret, token or session show as `***`. The session key of a 200 or 201 reply and the salt of a 209 reply show as `***`. Data lines of replies are only counted. Ciphertext is only counted in bytes, and the key is never printed. The line of a failed request has the error kind and reply code, not its text. `tests/fake_trace.rs` checks this against the fake server. The user name and the reply messages are traced as they are.
+
 ## Errors
 
 `Error` covers every failure:
