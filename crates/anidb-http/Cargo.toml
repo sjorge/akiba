@@ -1,0 +1,24 @@
+[package]
+name = "anidb-http"
+description = "AniDB HTTP API and titles dump client"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+ureq.workspace = true
+flate2.workspace = true
+quick-xml.workspace = true
+html-escape.workspace = true
+
+[dev-dependencies]
+toml.workspace = true
+tempfile.workspace = true
