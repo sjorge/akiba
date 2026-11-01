@@ -206,7 +206,7 @@ export async function nfoAction(
   log(`${title}: Writing show NFO ...`, "done", true, id);
 
   // NOTE: the poster is best effort, a failed download only warns
-  if (config.anidb.poster && !(await animeShowNfo.writePoster())) {
+  if (config.anidb.poster && !(await animeShowNfo.writePoster(overwrite))) {
     log(`${title}: Failed to write the poster ...`, "warn", true, id);
   }
 

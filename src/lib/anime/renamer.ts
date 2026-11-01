@@ -10,6 +10,7 @@ import Bun from "bun";
 import { machineIdSync } from "node-machine-id";
 import { AnidbUDPClient, AnidbError } from "lib/anidb";
 import { log } from "lib/logger";
+import { parseWholeInteger } from "lib/number";
 
 import { generateEd2kHash } from "lib/ed2khash";
 import { writeFileAtomic } from "lib/fs";
@@ -422,9 +423,13 @@ export class AnimeRenamer {
         episode_name_kanji: data.ep_kanji_name,
         episode_total: data.anime_total_episodes,
         episode_last: data.highest_episode,
+        // NOTE: can be YYYY-YYYY, a part that is not a whole number is dropped
         anime_year: data.year
           .split("-")
-          .map((year: string) => parseInt(year, 10)), // NOTE: can be YYYY-YYYY
+          .map((year: string) => parseWholeInteger(year))
+          .filter(
+            (year: number | undefined): year is number => year !== undefined,
+          ),
         anime_type: data.type,
         anime_name_romaji: data.romanji_name,
         anime_name_kanji: data.kanji_name,

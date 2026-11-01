@@ -92,4 +92,49 @@ test("AnimeEpisodeNfo maps AniDB episodes", (): void => {
   expect(episodeNfo("9", "9").episode).toEqual([]);
 });
 
+test("AnimeEpisodeNfo omits an episode number that does not parse", async (): Promise<void> => {
+  const [base] = makeShow().episodes;
+  // NOTE: parseInt would read "1.5" and "1x" as 1, and "S1x" as 1 too
+  const cases: [string, number][] = [
+    ["1.5", 1],
+    ["1x", 1],
+    ["S1x", 2],
+    ["S", 2],
+  ];
+  for (const [number, type] of cases) {
+    const dir = makeTempDir();
+    const media = path.join(dir, "Show - 01 - Title.mkv");
+    fs.writeFileSync(media, "");
+    const metadata = makeShow({
+      episodes: [{ ...base, episodeNumber: number, type }],
+    });
+
+    const nfo = new AnimeEpisodeNfo(
+      { anidb: 100 },
+      { path: media, episodeStart: number, episodeEnd: number, title: "File" },
+      metadata,
+    );
+    expect(nfo.episode, number).toHaveLength(1);
+    expect(nfo.episode[0].episode, number).toBeUndefined();
+    expect(await nfo.write(), number).toBe(true);
+
+    const xml = fs.readFileSync(media.replace(/\.mkv$/, ".nfo"), "utf8");
+    expect(xml, number).not.toContain("NaN");
+    expect(xml, number).not.toContain("<episode>");
+    expect(xml, number).toContain("<episodedetails>");
+  }
+});
+
+test("AnimeShowNfo checks the start date as a premiered date", (): void => {
+  expect(showNfo({ anidb: 100 }, { startDate: "2020-02-30" }).isValid()).toBe(
+    true,
+  );
+  expect(showNfo({ anidb: 100 }, { startDate: "2020-13-45" }).isValid()).toBe(
+    false,
+  );
+  expect(showNfo({ anidb: 100 }, { startDate: "2020-01-0x" }).isValid()).toBe(
+    false,
+  );
+});
+
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

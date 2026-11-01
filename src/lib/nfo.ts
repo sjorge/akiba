@@ -7,10 +7,22 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import stream from "node:stream";
-import util from "node:util";
 import axios from "axios";
 import { create, fragment } from "xmlbuilder2";
+
+import { writeFileAtomic, writeStreamAtomic } from "lib/fs";
+
+/*
+ * Mode of tvshow.nfo, the episode NFOs and poster.jpg. Jellyfin may run as
+ * another user, so the files stay world readable whatever the umask.
+ */
+const FILE_MODE = 0o644;
+
+/*
+ * YYYY-MM-DD with a month of 1 to 12 and a day of 1 to 31. Days in a month
+ * are not checked.
+ */
+const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
 export type UniqueId = {
   id: string | number;
@@ -104,13 +116,8 @@ export class TvShowNfo {
       return false;
 
     // NOTE: premiered must be YYYY-MM-DD format if specified
-    if (this.tvShow.premiered) {
-      const premieredRegEx = new RegExp(
-        /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/,
-      );
-      if (!premieredRegEx.test(this.tvShow.premiered)) return false;
-      if (isNaN(Date.parse(this.tvShow.premiered))) return false;
-    }
+    if (this.tvShow.premiered && !ISO_DATE.test(this.tvShow.premiered))
+      return false;
     return true;
   }
 
@@ -174,42 +181,41 @@ export class TvShowNfo {
     // write tvshow.nfo
     try {
       if (overwriteNfo || !fs.existsSync(nfoPath)) {
-        fs.writeFileSync(nfoPath, show.up().end({ prettyPrint: true }));
+        writeFileAtomic(
+          nfoPath,
+          show.up().end({ prettyPrint: true }),
+          FILE_MODE,
+        );
       }
     } catch {
       return false;
     }
 
     // write poster.jpg
-    if (includePoster && !(await this.writePoster())) return false;
+    if (includePoster && !(await this.writePoster(overwriteNfo))) return false;
 
     return true;
   }
 
   /*
-   * Download the poster to poster.jpg, unless the file already exists. A
-   * failed download leaves no partial file behind and returns false.
+   * Download the poster to poster.jpg. An existing poster is kept unless
+   * `overwrite` is set. The download is staged next to the poster and renamed
+   * over it once complete, so a failed download keeps the old poster and
+   * returns false.
    */
-  public async writePoster(): Promise<boolean> {
+  public async writePoster(overwrite: boolean = false): Promise<boolean> {
     if (this.tvShow.poster === undefined) return true;
 
     const posterPath: string = path.join(this.path, "poster.jpg");
-    if (fs.existsSync(posterPath)) return true;
+    if (!overwrite && fs.existsSync(posterPath)) return true;
 
     try {
       const response = await axios.get(this.tvShow.poster, {
         responseType: "stream",
         timeout: 30000,
       });
-      const writer = fs.createWriteStream(posterPath, {
-        encoding: "utf8",
-        mode: 0o660,
-      });
-      response.data.pipe(writer);
-      await util.promisify(stream.finished)(writer);
+      await writeStreamAtomic(posterPath, response.data, FILE_MODE);
     } catch {
-      // do not leave a partial poster behind
-      fs.rmSync(posterPath, { force: true });
       return false;
     }
 
@@ -262,18 +268,9 @@ export class EpisodeNfo {
       }
 
       // NOTE: premiered must be YYYY-MM-DD format if specified
-      if (episode.premiered) {
-        const premieredRegEx = new RegExp(
-          /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/,
-        );
-        if (!premieredRegEx.test(episode.premiered)) {
-          isValid = false;
-          return episode;
-        }
-        if (isNaN(Date.parse(episode.premiered))) {
-          isValid = false;
-          return episode;
-        }
+      if (episode.premiered && !ISO_DATE.test(episode.premiered)) {
+        isValid = false;
+        return episode;
       }
 
       return episode;
@@ -329,11 +326,12 @@ export class EpisodeNfo {
       // NOTE: nfo is a fragment as it has multiple episodedetails
       //       without a root node, this is invalid XML but it is what
       //       kodi/jellyfin expect.
-      fs.writeFileSync(
+      writeFileAtomic(
         nfoPath,
         '<?xml version="1.0" encoding="utf-8"?>' +
           "\n" +
           nfo.end({ prettyPrint: true }),
+        FILE_MODE,
       );
     } catch {
       return false;

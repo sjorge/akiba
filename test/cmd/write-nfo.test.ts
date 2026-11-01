@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import type { Mock } from "bun:test";
 import { Command } from "@commander-js/extra-typings";
 import AniDB from "anidbjs";
 import axios from "axios";
+import type { AxiosResponse } from "axios";
 
 import * as logger from "lib/logger";
 import { addNfoCommand } from "cmd/write-nfo";
@@ -108,6 +110,18 @@ async function runWriteNfo(
 }
 
 const EPISODE_NFO_NAME = "Test Show - 1 - Pilot.nfo";
+const POSTER_URL = "https://cdn.anidb.net/images/main/12345.jpg";
+
+// what axios resolves with for a streamed poster download of `body`
+function posterDownload(body: string): AxiosResponse {
+  return {
+    data: Readable.from([Buffer.from(body)]),
+  } as unknown as AxiosResponse;
+}
+
+function requestedPoster(): boolean {
+  return get.mock.calls.some(([url]) => url === POSTER_URL);
+}
 
 test("write-nfo keeps existing NFO files unless --force is given", async (): Promise<void> => {
   const dir = setUpRun({}, makeShow());
@@ -204,6 +218,80 @@ test("write-nfo only warns when the poster download fails", async (): Promise<vo
   expect(fs.existsSync(path.join(dir, "tvshow.nfo"))).toBe(true);
   expect(fs.existsSync(path.join(dir, EPISODE_NFO_NAME))).toBe(true);
   expect(fs.existsSync(path.join(dir, "poster.jpg"))).toBe(false);
+});
+
+test("write-nfo replaces an existing poster only with --force", async (): Promise<void> => {
+  const dir = setUpRun({ anidb: { poster: true } }, makeShow());
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+  get.mockImplementation(async (): Promise<AxiosResponse> =>
+    posterDownload("NEW"),
+  );
+
+  const kept = await runWriteNfo([dir, "--aid", "100"]);
+  expect(kept.exitCode).toBe(0);
+  expect(requestedPoster()).toBe(false);
+  expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+
+  const forced = await runWriteNfo([dir, "--aid", "100", "--force"]);
+  expect(forced.exitCode).toBe(0);
+  expect(requestedPoster()).toBe(true);
+  expect(fs.readFileSync(poster, "utf8")).toBe("NEW");
+  expect(fs.readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual(
+    [],
+  );
+});
+
+test("write-nfo replaces an existing poster when overwrite_nfo is set", async (): Promise<void> => {
+  const dir = setUpRun(
+    { overwrite_nfo: true, anidb: { poster: true } },
+    makeShow(),
+  );
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+  get.mockImplementation(async (): Promise<AxiosResponse> =>
+    posterDownload("NEW"),
+  );
+
+  const { exitCode } = await runWriteNfo([dir, "--aid", "100"]);
+  expect(exitCode).toBe(0);
+  expect(requestedPoster()).toBe(true);
+  expect(fs.readFileSync(poster, "utf8")).toBe("NEW");
+});
+
+test("write-nfo keeps the old poster and only warns when a forced download fails", async (): Promise<void> => {
+  const dir = setUpRun({ anidb: { poster: true } }, makeShow());
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+
+  const { logged, exitCode } = await runWriteNfo([
+    dir,
+    "--aid",
+    "100",
+    "--force",
+  ]);
+  expect(exitCode).toBe(0);
+  expect(
+    logged.some((l) => l.type === "warn" && l.msg.includes("poster")),
+  ).toBe(true);
+  expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+  expect(fs.readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual(
+    [],
+  );
+});
+
+test("write-nfo never touches poster.jpg when poster fetching is off", async (): Promise<void> => {
+  const dir = setUpRun({}, makeShow());
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+  get.mockImplementation(async (): Promise<AxiosResponse> =>
+    posterDownload("NEW"),
+  );
+
+  const { exitCode } = await runWriteNfo([dir, "--aid", "100", "--force"]);
+  expect(exitCode).toBe(0);
+  expect(requestedPoster()).toBe(false);
+  expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
 });
 
 test("write-nfo rejects id arguments that are not whole integers", async (): Promise<void> => {

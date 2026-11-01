@@ -13,6 +13,7 @@ import type { EpisodeFile } from "lib/anime/resolver";
 import type { TvShow, Episode, UniqueId } from "lib/nfo";
 
 import { TvShowNfo, EpisodeNfo } from "lib/nfo";
+import { parseWholeInteger } from "lib/number";
 
 export class AnimeShowNfo extends TvShowNfo {
   public constructor(id: AnimeId, metadata: AniDB_Show, path: string) {
@@ -135,18 +136,24 @@ export class AnimeEpisodeNfo extends EpisodeNfo {
           }
         }
 
-        // update season / episode
+        // update season / episode, a number that is not a whole number is
+        // left out rather than written as NaN
         switch (episodeMetadata.type) {
           case 1:
             episode.season = 1;
-            episode.episode = parseInt(episodeMetadata.episodeNumber, 10);
+            episode.episode = parseWholeInteger(episodeMetadata.episodeNumber);
             break;
-          default:
+          default: {
             episode.season = 0;
+            const number = parseWholeInteger(
+              episodeMetadata.episodeNumber.substring(1),
+            );
             episode.episode =
-              parseInt(episodeMetadata.episodeNumber.substring(1), 10) +
-              episodeMetadata.type * 100;
+              number === undefined
+                ? undefined
+                : number + episodeMetadata.type * 100;
             break;
+          }
         }
 
         // update premiered

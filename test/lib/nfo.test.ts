@@ -1,11 +1,46 @@
 import fs from "node:fs";
 import path from "node:path";
-import { expect, test } from "bun:test";
+import { Readable } from "node:stream";
+import { expect, spyOn, test } from "bun:test";
+import type { Mock } from "bun:test";
+import axios from "axios";
+import type { AxiosResponse } from "axios";
 
 import type { Episode, TvShow } from "lib/nfo";
 
 import { EpisodeNfo, TvShowNfo } from "lib/nfo";
 import { makeTempDir, rejectionMessage } from "test/helpers";
+
+const POSTER_URL = "https://cdn.example.test/poster.jpg";
+
+function mode(file: string): number {
+  return fs.statSync(file).mode & 0o777;
+}
+
+// axios.get as a mock, its generic return type is not needed here
+function spyGet(): Mock<(...args: unknown[]) => unknown> {
+  return spyOn(axios, "get") as unknown as Mock<
+    (...args: unknown[]) => unknown
+  >;
+}
+
+// what axios resolves with for a streamed download of `body`
+function download(body: string): AxiosResponse {
+  return {
+    data: Readable.from([Buffer.from(body)]),
+  } as unknown as AxiosResponse;
+}
+
+// a download that sends some bytes and then fails, like a dropped connection
+function brokenDownload(): AxiosResponse {
+  const data = new Readable({
+    read(): void {
+      this.push("partial");
+      this.destroy(new Error("connection reset"));
+    },
+  });
+  return { data } as unknown as AxiosResponse;
+}
 
 function show(overrides: Partial<TvShow> = {}): TvShow {
   return {
@@ -190,6 +225,187 @@ test("EpisodeNfo.write writes several episodedetails", async (): Promise<void> =
   expect(fs.readFileSync(nfoPath, "utf8")).toBe("old");
   await new EpisodeNfo([episode()], file).write(true);
   expect(fs.readFileSync(nfoPath, "utf8")).toContain("<episodedetails>");
+});
+
+test("premiered is exactly YYYY-MM-DD with a month and day in range", (): void => {
+  const valid = (premiered: string): boolean =>
+    new TvShowNfo(show({ premiered }), makeTempDir()).isValid();
+  const validEpisode = (premiered: string): boolean =>
+    new EpisodeNfo([episode({ premiered })], episodeFile()).isValid();
+
+  // days-in-month is not checked, only the shape and the ranges
+  for (const ok of ["2020-01-02", "1999-12-31", "2020-02-30", "2020-02-31"]) {
+    expect(valid(ok), ok).toBe(true);
+    expect(validEpisode(ok), ok).toBe(true);
+  }
+  expect(valid("")).toBe(true);
+
+  for (const bad of [
+    "2020-01",
+    "2020-13-01",
+    "2020-00-10",
+    "2020-01-00",
+    "2020-01-32",
+    "2020-1-02",
+    "x2020-01-02",
+    "2020-01-02x",
+    "2020-01-02\n",
+    "2020/01/02",
+    "Jan 2 2020",
+  ]) {
+    expect(valid(bad), JSON.stringify(bad)).toBe(false);
+    expect(validEpisode(bad), JSON.stringify(bad)).toBe(false);
+  }
+});
+
+test("NFO files are written atomically and keep mode 0o644 whatever the umask", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const nfoPath = path.join(dir, "tvshow.nfo");
+  const file = episodeFile();
+  const episodeNfoPath = file.replace(/\.mkv$/, ".nfo");
+
+  const previous = process.umask(0o077);
+  try {
+    // a stale NFO with a private mode is replaced with the shared mode
+    fs.writeFileSync(nfoPath, "old", { mode: 0o600 });
+    fs.writeFileSync(episodeNfoPath, "old", { mode: 0o600 });
+    expect(await new TvShowNfo(show(), dir).write(true, false)).toBe(true);
+    expect(await new EpisodeNfo([episode()], file).write(true)).toBe(true);
+    expect(mode(nfoPath)).toBe(0o644);
+    expect(mode(episodeNfoPath)).toBe(0o644);
+  } finally {
+    process.umask(previous);
+  }
+  expect(fs.readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual(
+    [],
+  );
+});
+
+test("a failed NFO replacement keeps the old NFO and leaves no tmp file", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const nfoPath = path.join(dir, "tvshow.nfo");
+  fs.writeFileSync(nfoPath, "old");
+  const file = path.join(dir, "Show - 01 - First.mkv");
+  fs.writeFileSync(file, "");
+  const episodeNfoPath = path.join(dir, "Show - 01 - First.nfo");
+  fs.writeFileSync(episodeNfoPath, "old");
+
+  const failing = spyOn(fs, "renameSync").mockImplementation((): void => {
+    throw new Error("EIO: input/output error");
+  });
+  try {
+    expect(await new TvShowNfo(show(), dir).write(true, false)).toBe(false);
+    expect(await new EpisodeNfo([episode()], file).write(true)).toBe(false);
+  } finally {
+    failing.mockRestore();
+  }
+
+  expect(fs.readFileSync(nfoPath, "utf8")).toBe("old");
+  expect(fs.readFileSync(episodeNfoPath, "utf8")).toBe("old");
+  expect(fs.readdirSync(dir).sort()).toEqual([
+    "Show - 01 - First.mkv",
+    "Show - 01 - First.nfo",
+    "tvshow.nfo",
+  ]);
+});
+
+test("TvShowNfo.writePoster replaces an existing poster only when overwriting", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+  const get = spyGet().mockImplementation(async (): Promise<AxiosResponse> =>
+    download("NEW"),
+  );
+  try {
+    const nfo = new TvShowNfo(show({ poster: POSTER_URL }), dir);
+
+    expect(await nfo.writePoster(false)).toBe(true);
+    expect(get).not.toHaveBeenCalled();
+    expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+
+    expect(await nfo.writePoster(true)).toBe(true);
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(poster, "utf8")).toBe("NEW");
+    expect(mode(poster)).toBe(0o644);
+    expect(fs.readdirSync(dir)).toEqual(["poster.jpg"]);
+  } finally {
+    get.mockRestore();
+  }
+});
+
+test("TvShowNfo.writePoster keeps the old poster when the download fails", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+  const nfo = new TvShowNfo(show({ poster: POSTER_URL }), dir);
+
+  const get = spyGet().mockImplementation(async (): Promise<never> => {
+    throw new Error("connect ECONNREFUSED");
+  });
+  try {
+    expect(await nfo.writePoster(true)).toBe(false);
+  } finally {
+    get.mockRestore();
+  }
+  expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+  expect(fs.readdirSync(dir)).toEqual(["poster.jpg"]);
+
+  // NOTE: the body stops part way through, the staged file must go too
+  const broken = spyGet().mockImplementation(async (): Promise<AxiosResponse> =>
+    brokenDownload(),
+  );
+  try {
+    expect(await nfo.writePoster(true)).toBe(false);
+  } finally {
+    broken.mockRestore();
+  }
+  expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+  expect(fs.readdirSync(dir)).toEqual(["poster.jpg"]);
+});
+
+test("TvShowNfo.writePoster reports a poster path that cannot be replaced", async (): Promise<void> => {
+  const dir = makeTempDir();
+  // NOTE: a directory where the poster should go cannot be renamed over
+  fs.mkdirSync(path.join(dir, "poster.jpg"));
+  const get = spyGet().mockImplementation(async (): Promise<AxiosResponse> =>
+    download("NEW"),
+  );
+  try {
+    const nfo = new TvShowNfo(show({ poster: POSTER_URL }), dir);
+    expect(await nfo.writePoster(true)).toBe(false);
+  } finally {
+    get.mockRestore();
+  }
+  expect(fs.readdirSync(dir)).toEqual(["poster.jpg"]);
+  expect(fs.statSync(path.join(dir, "poster.jpg")).isDirectory()).toBe(true);
+});
+
+test("TvShowNfo.write touches poster.jpg only when fetching and overwriting", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const poster = path.join(dir, "poster.jpg");
+  fs.writeFileSync(poster, "OLD");
+  const get = spyGet().mockImplementation(async (): Promise<AxiosResponse> =>
+    download("NEW"),
+  );
+  try {
+    const nfo = (): TvShowNfo =>
+      new TvShowNfo(show({ poster: POSTER_URL }), dir);
+
+    // poster fetching disabled: never touched, even with overwrite
+    expect(await nfo().write(true, false)).toBe(true);
+    expect(get).not.toHaveBeenCalled();
+    expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+
+    // without overwrite an existing poster is kept
+    expect(await nfo().write(false, true)).toBe(true);
+    expect(get).not.toHaveBeenCalled();
+    expect(fs.readFileSync(poster, "utf8")).toBe("OLD");
+
+    expect(await nfo().write(true, true)).toBe(true);
+    expect(fs.readFileSync(poster, "utf8")).toBe("NEW");
+  } finally {
+    get.mockRestore();
+  }
 });
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
