@@ -1,0 +1,40 @@
+{
+  "pattern": "byte(i) = (i * 31 + 7 + floor(i / 1048576)) & 0xff, for i in 0..size-1",
+  "files": [
+    {
+      "size": 0,
+      "ed2k": "31d6cfe0d16ae931b73c59d7e0c089c0",
+      "crc32": "00000000",
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "sha1": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    },
+    {
+      "size": 1,
+      "ed2k": "a8deec165ed8ad822e82bc0563574d68",
+      "crc32": "4c667a2e",
+      "md5": "89e74e640b8c46257a29de0616794d5d",
+      "sha1": "5d1be7e9dda1ee8896be5b7e34a85ee16452a7b4"
+    },
+    {
+      "size": 9728000,
+      "ed2k": "a0215faeb0545a3044a1b7518eb19730",
+      "crc32": "b1f3f7ba",
+      "md5": "1b6ef531bb7ea7b452e880759523e6a4",
+      "sha1": "213706a94a8ffa0186a504c1f6e432350c46fbf2"
+    },
+    {
+      "size": 9728001,
+      "ed2k": "d9b8cd77af43021e4d86bd9d66accd0b",
+      "crc32": "e4b0568c",
+      "md5": "4ca24acfc6e047b1f391d710d5b6d68a",
+      "sha1": "eb429f1f5b3cde34b5c1ed4bcf5a05bdfd0add66"
+    },
+    {
+      "size": 19456000,
+      "ed2k": "1a6dbd097ee8769ba0f63d09ddea9e3f",
+      "crc32": "0a68ad90",
+      "md5": "5d40593affe52e505a9c440f60d2f2ad",
+      "sha1": "4e1848f5193a5215c7df40ee1a173d4b45381b02"
+    }
+  ]
+}
