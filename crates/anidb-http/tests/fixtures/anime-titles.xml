@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<animetitles>
+<anime aid="1">
+  <title xml:lang="x-jat" type="main">Anime One</title>
+  <title xml:lang="en" type="official">Anime One</title>
+  <title xml:lang="en" type="synonym">Ignored Synonym</title>
+  <title xml:lang="en" type="short">Ignored Short</title>
+</anime>
+<anime aid="2">
+  <title xml:lang="x-jat" type="main">Fish &amp;amp; Chips &amp;quot;Live&amp;quot;</title>
+  <title xml:lang="en" type="official">Tom &amp; Jerry</title>
+</anime>
+<anime aid="3">
+  <title xml:lang="en" type="synonym">Only Synonyms</title>
+</anime>
+<anime aid="100">
+  <title xml:lang="ja" type="official">テスト</title>
+</anime>
+</animetitles>
