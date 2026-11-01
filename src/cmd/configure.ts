@@ -94,21 +94,26 @@ async function configureAction(opts: OptionValues): Promise<void> {
  * Setup `configure` command for commander-js
  */
 export function addConfigureCommand(program: Command): void {
-  function anidbClientValidation(value: string): string {
-    const clientVersion = value.split("/");
-    if (clientVersion.length == 1) clientVersion.push("1");
+  // NOTE: only the UDP client name has a rule (the spec's 4 to 16 letters)
+  function anidbClientValidation(
+    checkName: boolean,
+  ): (value: string) => string {
+    return (value: string): string => {
+      const clientVersion = value.split("/");
+      if (clientVersion.length == 1) clientVersion.push("1");
 
-    if (!isValidClientName(clientVersion[0]!))
-      throw new InvalidArgumentError(
-        "Expecting 4 to 16 lower case letters (a-z) for the client name.",
-      );
+      if (checkName && !isValidClientName(clientVersion[0]!))
+        throw new InvalidArgumentError(
+          "Expecting 4 to 16 lower case letters (a-z) for the client name.",
+        );
 
-    // the version is stored as an unsigned 32-bit number
-    const version = parseWholeInteger(clientVersion[1]);
-    if (version === undefined || version < 0 || version > 0xffffffff)
-      throw new InvalidArgumentError("Expecting a number for version.");
+      // the version is stored as an unsigned 32-bit number
+      const version = parseWholeInteger(clientVersion[1]);
+      if (version === undefined || version < 0 || version > 0xffffffff)
+        throw new InvalidArgumentError("Expecting a number for version.");
 
-    return value;
+      return value;
+    };
   }
 
   program
@@ -118,13 +123,13 @@ export function addConfigureCommand(program: Command): void {
       new Option(
         "--anidb-http-client <http_client>",
         "your anidb http client (format: <name>/<version>)",
-      ).argParser(anidbClientValidation),
+      ).argParser(anidbClientValidation(false)),
     )
     .addOption(
       new Option(
         "--anidb-udp-client <udp_client>",
         "your anidb udp client (format: <name>/<version>)",
-      ).argParser(anidbClientValidation),
+      ).argParser(anidbClientValidation(true)),
     )
     .addOption(
       new Option("--anidb-auth-username <username>", "your anidb username"),
