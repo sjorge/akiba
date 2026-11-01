@@ -5,37 +5,14 @@
   "hard_tabs": false,
   "tab_size": 4,
   "languages": {
-    "TypeScript": {
+    "Rust": {
       "format_on_save": "on",
-      "tab_size": 2,
-      "formatter": {
-        "external": {
-          "command": "bun",
-          "arguments": [
-            "x",
-            "--bun",
-            "prettier",
-            "--stdin-filepath",
-            "{buffer_path}"
-          ]
-        }
-      }
+      "formatter": "language_server",
+      "language_servers": ["rust-analyzer"]
     },
     "JSONC": {
       "format_on_save": "on",
-      "tab_size": 2,
-      "formatter": {
-        "external": {
-          "command": "bun",
-          "arguments": [
-            "x",
-            "--bun",
-            "prettier",
-            "--stdin-filepath",
-            "{buffer_path}"
-          ]
-        }
-      }
+      "tab_size": 2
     }
   }
 }

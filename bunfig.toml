@@ -1,4 +1,0 @@
-[test]
-root = "test"
-preload = ["./test/setup.ts"]
-coveragePathIgnorePatterns = ["src/lib/anidb/**", "test/**"]
