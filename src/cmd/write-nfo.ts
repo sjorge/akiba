@@ -7,6 +7,7 @@ import {
 } from "@commander-js/extra-typings";
 import fs from "node:fs";
 import path from "node:path";
+import type { AniDB_Show } from "anidbjs";
 
 import type { Config } from "lib/config";
 import type { AnimeId, AnimeTitleVariant } from "lib/anime";
@@ -20,11 +21,21 @@ import { AnimeResolver } from "lib/anime/resolver";
 import { AnimeMetadata } from "lib/anime/metadata";
 import { AnimeShowNfo, AnimeEpisodeNfo } from "lib/anime/nfo";
 import { banner, log } from "lib/logger";
+import { parseWholeInteger } from "lib/number";
 
 function handleError(msg: string, _e: unknown): void {
   const e = _e as Error;
   log(`${msg}: ${e.message}`, "error");
   process.exitCode = 1;
+}
+
+/*
+ * Commander argument parser for ids, the whole value must be an integer
+ */
+function parseIdArgument(value: string): number {
+  const id = parseWholeInteger(value);
+  if (id === undefined) throw new InvalidArgumentError("Expecting a number.");
+  return id;
 }
 
 /*
@@ -103,8 +114,9 @@ export async function nfoAction(
   }
 
   log(`${title}: Identifying ...`, "step", true, id);
+  // NOTE: the id options are already whole integers, see parseIdArgument
   id = opts.aid
-    ? ({ anidb: parseInt(`${opts.aid}`, 10) } as AnimeId)
+    ? ({ anidb: opts.aid as number } as AnimeId)
     : animeResolver.id(title);
 
   // unable to identify anime, exit
@@ -125,10 +137,10 @@ export async function nfoAction(
   // add additional ids from cli flags
   log(`${title}: Mapping IDs from cli flags ...`, "step", true, id);
   if (opts.anilistid) {
-    id.anilist = parseInt(`${opts.anilistid}`, 10);
+    id.anilist = opts.anilistid as number;
   }
   if (opts.tmdbid) {
-    id.tmdb = parseInt(`${opts.tmdbid}`, 10);
+    id.tmdb = opts.tmdbid as number;
     id.tmdbSeason = 1; // hardcode this for now
   }
   log(`${title}: Mapping IDs from cli flags ...`, "done", true, id);
@@ -157,21 +169,46 @@ export async function nfoAction(
 
   // lookup metadata
   log(`${title}: Retrieving metadata ...`, "step", true, id);
-  const metadata = await animeMetadata.get(id, opts.fresh as boolean);
+  let metadata: AniDB_Show;
+  try {
+    metadata = await animeMetadata.get(id, opts.fresh as boolean);
+  } catch (_e: unknown) {
+    const e = _e as Error;
+    log(`${title}: ${e.message}`, "error", true, id);
+    process.exitCode = 1;
+    return;
+  }
   log(`${title}: Retrieving metadata ...`, "done", true, id);
+
+  // NOTE: --force and the overwrite_nfo config key both replace existing NFOs
+  const overwrite: boolean = (opts.force as boolean) || config.overwrite_nfo;
 
   // write tvshow.nfo
   log(`${title}: Writing show NFO ...`, "step", true, id);
-  const animeShowNfo = new AnimeShowNfo(id, metadata, animePath);
+  let animeShowNfo: AnimeShowNfo;
+  try {
+    animeShowNfo = new AnimeShowNfo(id, metadata, animePath);
+  } catch (_e: unknown) {
+    const e = _e as Error;
+    log(`${title}: Failed to write show NFO ...`, "error", true, id);
+    log(e.message, "error");
+    process.exitCode = 1;
+    return;
+  }
   if (
     !animeShowNfo.isValid() ||
-    !(await animeShowNfo.write(opts.force as boolean, config.anidb.poster))
+    !(await animeShowNfo.write(overwrite, false))
   ) {
     log(`${title}: Failed to write show NFO ...`, "error", true, id);
     process.exitCode = 1;
     return;
   }
   log(`${title}: Writing show NFO ...`, "done", true, id);
+
+  // NOTE: the poster is best effort, a failed download only warns
+  if (config.anidb.poster && !(await animeShowNfo.writePoster())) {
+    log(`${title}: Failed to write the poster ...`, "warn", true, id);
+  }
 
   // write episode.nfo
   for (const episode of animeResolver.episodes(animePath)) {
@@ -183,7 +220,7 @@ export async function nfoAction(
     const animeEpisodeNfo = new AnimeEpisodeNfo(id, episode, metadata);
     if (
       !animeEpisodeNfo.isValid() ||
-      !(await animeEpisodeNfo.write(opts.force as boolean))
+      !(await animeEpisodeNfo.write(overwrite))
     ) {
       log(
         `${title}: Failed to write episode ${titleSuffix} NFO ...`,
@@ -217,31 +254,19 @@ export function addNfoCommand(program: Command): void {
       new Option(
         "--aid <id>",
         "specify the anidb anime id instead of trying to auto detect",
-      ).argParser((value: string) => {
-        const id = parseInt(value, 10);
-        if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-        return id;
-      }),
+      ).argParser(parseIdArgument),
     )
     .addOption(
       new Option(
         "--anilistid <id>",
         "specify the anilist id instead of trying to auto detect",
-      ).argParser((value: string) => {
-        const id = parseInt(value, 10);
-        if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-        return id;
-      }),
+      ).argParser(parseIdArgument),
     )
     .addOption(
       new Option(
         "--tmdbid <id>",
         "specify the themoviedb series id instead of trying to auto detect (movie ids are not supported)",
-      ).argParser((value: string) => {
-        const id = parseInt(value, 10);
-        if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-        return id;
-      }),
+      ).argParser(parseIdArgument),
     )
     .addOption(new Option("--fresh", "force retrieve metadata").default(false))
     .addOption(

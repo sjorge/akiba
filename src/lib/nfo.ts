@@ -181,26 +181,36 @@ export class TvShowNfo {
     }
 
     // write poster.jpg
-    if (includePoster && this.tvShow.poster !== undefined) {
-      const posterPath: string = path.join(this.path, "poster.jpg");
-      if (!fs.existsSync(posterPath)) {
-        try {
-          const response = await axios.get(this.tvShow.poster, {
-            responseType: "stream",
-            timeout: 30000,
-          });
-          const writer = fs.createWriteStream(posterPath, {
-            encoding: "utf8",
-            mode: 0o660,
-          });
-          response.data.pipe(writer);
-          await util.promisify(stream.finished)(writer);
-        } catch {
-          // do not leave a partial poster behind
-          fs.rmSync(posterPath, { force: true });
-          return false;
-        }
-      }
+    if (includePoster && !(await this.writePoster())) return false;
+
+    return true;
+  }
+
+  /*
+   * Download the poster to poster.jpg, unless the file already exists. A
+   * failed download leaves no partial file behind and returns false.
+   */
+  public async writePoster(): Promise<boolean> {
+    if (this.tvShow.poster === undefined) return true;
+
+    const posterPath: string = path.join(this.path, "poster.jpg");
+    if (fs.existsSync(posterPath)) return true;
+
+    try {
+      const response = await axios.get(this.tvShow.poster, {
+        responseType: "stream",
+        timeout: 30000,
+      });
+      const writer = fs.createWriteStream(posterPath, {
+        encoding: "utf8",
+        mode: 0o660,
+      });
+      response.data.pipe(writer);
+      await util.promisify(stream.finished)(writer);
+    } catch {
+      // do not leave a partial poster behind
+      fs.rmSync(posterPath, { force: true });
+      return false;
     }
 
     return true;

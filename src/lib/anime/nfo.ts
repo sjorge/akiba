@@ -16,6 +16,13 @@ import { TvShowNfo, EpisodeNfo } from "lib/nfo";
 
 export class AnimeShowNfo extends TvShowNfo {
   public constructor(id: AnimeId, metadata: AniDB_Show, path: string) {
+    // NOTE: the NFO needs a title, so a show without titles is refused
+    if (!metadata.titles?.length) {
+      throw new Error(
+        `AniDB anime ${id.anidb} has no titles, refusing to write its NFO without a title`,
+      );
+    }
+
     super(
       {
         uniqueId: [],
