@@ -126,4 +126,78 @@ test("unknown tags throw and validate reports them", (): void => {
   );
 });
 
+function number(episode: string): string {
+  return animeStringFormat("{episode:number}", sampleFormatData({ episode }));
+}
+
+test("number only converts whole numbers and ranges of them", (): void => {
+  for (const [episode, expected] of [
+    ["013", "13"],
+    ["01-03", "1-3"],
+    ["0", "0"],
+    ["00", "0"],
+    ["9007199254740993", "9007199254740993"],
+    ["99999999999999999999999", "99999999999999999999999"],
+    ["12abc", "12abc"],
+    ["1.5", "1.5"],
+    ["1e3", "1e3"],
+    ["0x10", "0x10"],
+    ["1-2-3", "1-2-3"],
+    ["01-02v2", "01-02v2"],
+    ["S1", "S1"],
+    ["S01-S03", "S01-S03"],
+    ["S01-03", "S01-03"],
+  ])
+    expect(number(episode)).toBe(expected);
+});
+
+test("prototype names are not tags", (): void => {
+  for (const tag of [
+    "constructor",
+    "toString",
+    "hasOwnProperty",
+    "__proto__",
+  ]) {
+    expect((): string =>
+      animeStringFormat(`{${tag}}`, sampleFormatData()),
+    ).toThrow(AnimeStringFormatException);
+    expect(animeStringValidate(`{${tag}:upper}`)).toBe(false);
+  }
+});
+
+test("unknown tags are reported before rendering errors", (): void => {
+  const data = sampleFormatData({ anime_year: [2015] });
+  expect((): string => animeStringFormat("{anime_year}{nope}", data)).toThrow(
+    /\{nope\} is not known/,
+  );
+  expect((): boolean =>
+    animeStringValidate("{anime_year}{nope}", true),
+  ).toThrow(/\{nope\} is not known/);
+});
+
+test("a number picked from a list throws a clear error", (): void => {
+  const data = sampleFormatData({ anime_year: [2015, 2016] });
+  for (const template of ["{anime_year}", "{anime_year:1}"]) {
+    expect((): string => animeStringFormat(template, data)).toThrow(
+      AnimeStringFormatException,
+    );
+    expect((): string => animeStringFormat(template, data)).toThrow(
+      /selects a number from a list/,
+    );
+    expect(animeStringValidate(template)).toBe(false);
+    expect((): boolean => animeStringValidate(template, true)).toThrow(
+      AnimeStringFormatException,
+    );
+  }
+
+  // the other modifiers and an out of range index join the list
+  expect(animeStringFormat("{anime_year:number}", data)).toBe("2015,2016");
+  expect(animeStringFormat("{anime_year:upper}", data)).toBe("2015,2016");
+  expect(animeStringFormat("{anime_year:5}", data)).toBe("2015,2016");
+  expect(animeStringValidate("{anime_year:number}")).toBe(true);
+  expect(
+    animeStringFormat("{anime_year}", sampleFormatData({ anime_year: [] })),
+  ).toBe("");
+});
+
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
