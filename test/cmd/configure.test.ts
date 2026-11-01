@@ -61,3 +61,34 @@ test("configure stores a whole integer client version", async (): Promise<void> 
 });
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
+
+test("configure rejects client names that are not 4 to 16 lower case letters", async (): Promise<void> => {
+  for (const flag of ["--anidb-udp-client", "--anidb-http-client"]) {
+    for (const bad of [
+      "abc",
+      "Akiba",
+      "my_client",
+      "client1",
+      "a".repeat(17),
+    ]) {
+      for (const suffix of ["", "/3"]) {
+        expect(
+          await rejectionMessage(runConfigure([flag, `${bad}${suffix}`])),
+        ).toContain("lower case letters");
+      }
+    }
+  }
+});
+
+test("configure accepts the shortest and longest client names", async (): Promise<void> => {
+  expect(writeConfig(makeConfig())).toBe(true);
+  await runConfigure([
+    "--anidb-udp-client",
+    "abcd/2",
+    "--anidb-http-client",
+    `${"z".repeat(16)}/3`,
+  ]);
+  const stored = readConfig();
+  expect(stored.anidb.udp_client).toMatchObject({ name: "abcd", version: 2 });
+  expect(stored.anidb.http_client.name).toBe("z".repeat(16));
+});

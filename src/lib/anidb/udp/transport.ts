@@ -26,9 +26,19 @@ export type UdpTransportOptions = {
   interval?: number;
   // time to wait for a reply in milliseconds
   timeout?: number;
-  // called with problems that do not stop the transport
-  onWarning?: (message: string) => void;
 };
+
+/*
+ * A reply that could not be decrypted. After ENCRYPT the server answers in the
+ * clear once it lost the session (501, 506), so the caller treats this as a
+ * lost session.
+ */
+export class DecryptError extends Error {
+  public constructor(reason?: string) {
+    super(`Message decrypt failed${reason ? `: ${reason}` : ""}`);
+    this.name = "DecryptError";
+  }
+}
 
 type Pending = {
   resolve: (response: ParsedResponse) => void;
@@ -60,14 +70,12 @@ export class UdpTransport {
   private port: number;
   private interval: number;
   private timeout: number;
-  private onWarning: ((message: string) => void) | undefined;
 
   public constructor(options: UdpTransportOptions = {}) {
     this.host = options.host ?? ANIDB_HOST;
     this.port = options.port ?? ANIDB_PORT;
     this.interval = options.interval ?? REQUEST_INTERVAL_MS;
     this.timeout = options.timeout ?? REQUEST_TIMEOUT_MS;
-    this.onWarning = options.onWarning;
   }
 
   public toString(): string {
@@ -202,12 +210,10 @@ export class UdpTransport {
         try {
           data = decrypt(data, this.encryptionKey);
         } catch (_e: unknown) {
-          // most likely anidb dropped encryption, so stop using it
+          // most likely anidb dropped encryption together with the session, so
+          // stop using the key
           this.encryptionKey = null;
-          this.onWarning?.(
-            "AniDB sent a reply that cannot be decrypted, encryption is turned off for the rest of this connection",
-          );
-          throw new Error(`Message decrypt failed: ${(_e as Error).message}`);
+          throw new DecryptError((_e as Error).message);
         }
       }
       if (isCompressed(data)) data = decompress(data);

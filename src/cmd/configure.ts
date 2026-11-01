@@ -17,6 +17,7 @@ import {
   animeStringValidate,
   AnimeStringFormatException,
 } from "lib/anime/formatter";
+import { isValidClientName } from "lib/anidb/client";
 import { banner, log } from "lib/logger";
 import { parseWholeInteger } from "lib/number";
 
@@ -96,6 +97,11 @@ export function addConfigureCommand(program: Command): void {
   function anidbClientValidation(value: string): string {
     const clientVersion = value.split("/");
     if (clientVersion.length == 1) clientVersion.push("1");
+
+    if (!isValidClientName(clientVersion[0]!))
+      throw new InvalidArgumentError(
+        "Expecting 4 to 16 lower case letters (a-z) for the client name.",
+      );
 
     // the version is stored as an unsigned 32-bit number
     const version = parseWholeInteger(clientVersion[1]);

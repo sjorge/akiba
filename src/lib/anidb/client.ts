@@ -70,12 +70,17 @@ import {
   parseMylistEdited,
 } from "lib/anidb/responses";
 import { UdpTransport, createKey } from "lib/anidb/udp";
+import { DecryptError } from "lib/anidb/udp/transport";
 import { nameOrId, reverseObj } from "lib/anidb/util";
 
 type Params = Record<string, string | number>;
 
 // the spec: lower case a-z, 4 to 16 characters
 const CLIENT_NAME_PATTERN: RegExp = /^[a-z]{4,16}$/;
+
+export function isValidClientName(name: string): boolean {
+  return CLIENT_NAME_PATTERN.test(name);
+}
 const DEFAULT_CLIENT_VERSION: number = 1;
 const DEFAULT_PRIORITY: number = 5;
 const LOGOUT_PRIORITY: number = 0;
@@ -151,6 +156,9 @@ export class AnidbUDPClient {
   // what `login` needs to log in again after the server lost the session
   private credentials:
     { user: string; pass: string; encoding?: EncodingType } | undefined;
+  // the udp api key of the current connection, every login is encrypted with it
+  private apiKey: string | undefined;
+  private clientNameChecked: boolean = false;
 
   /*
    * `clientId`: your client's name, register it here:
@@ -159,11 +167,6 @@ export class AnidbUDPClient {
    */
   public constructor(clientId: string, options: AnidbClientOptions = {}) {
     this.options = options;
-    if (!CLIENT_NAME_PATTERN.test(clientId)) {
-      this.warn(
-        `AniDB client name "${clientId}" should be 4 to 16 lower case letters (a-z)`,
-      );
-    }
     this.clientId = clientId;
     this.pingInterval = options.ping_interval || PING_INTERVAL_MS;
     this.uptimeInterval = options.uptime_interval || UPTIME_INTERVAL_MS;
@@ -173,12 +176,7 @@ export class AnidbUDPClient {
         `client_version must be a positive integer but was ${this.clientVersion}`,
       );
     }
-    this.transport = new UdpTransport({
-      ...options.transport,
-      onWarning: (message: string): void => {
-        this.warn(message);
-      },
-    });
+    this.transport = new UdpTransport(options.transport);
   }
 
   public toString(): string {
@@ -207,6 +205,7 @@ export class AnidbUDPClient {
     encoding?: EncodingType,
   ): Promise<ConnectResult | undefined> {
     if (this.banned) throw this.banned;
+    this.checkClientName();
     // the old client leaked the previous socket here
     await this.disconnect("connect");
 
@@ -219,12 +218,9 @@ export class AnidbUDPClient {
       );
     }
 
+    this.apiKey = udp_api_key || undefined;
     try {
-      if (udp_api_key && user) {
-        const { response } = await this.callApi("ENCRYPT", { user, type: 1 });
-        const [salt] = response;
-        this.transport.encryptionKey = createKey(udp_api_key, salt!);
-      }
+      if (this.apiKey && user) await this.encrypt(user, this.apiKey);
 
       if (user && password) {
         return await this.login(user, password, encoding);
@@ -235,6 +231,30 @@ export class AnidbUDPClient {
       throw _e;
     }
     return undefined;
+  }
+
+  /*
+   * The spec wants 4 to 16 lower case letters. Checked when the client is first
+   * used, so runs that never contact AniDB stay quiet, and warned about once.
+   */
+  private checkClientName(): void {
+    if (this.clientNameChecked) return;
+    this.clientNameChecked = true;
+    if (!isValidClientName(this.clientId)) {
+      this.warn(
+        `AniDB client name "${this.clientId}" should be 4 to 16 lower case letters (a-z)`,
+      );
+    }
+  }
+
+  /*
+   * ENCRYPT, sent in the clear (it only carries the user name). From the reply
+   * on every packet is encrypted.
+   */
+  private async encrypt(user: string, apiKey: string): Promise<void> {
+    const { response } = await this.callApi("ENCRYPT", { user, type: 1 });
+    const [salt] = response;
+    this.transport.encryptionKey = createKey(apiKey, salt!);
   }
 
   /*
@@ -287,6 +307,7 @@ export class AnidbUDPClient {
     pass: string,
     encoding?: EncodingType,
   ): Promise<ConnectResult> {
+    this.checkClientName();
     let enc: string = ENCODINGS.UTF8;
     if (encoding) {
       if (!ENCODINGS[encoding]) {
@@ -296,6 +317,12 @@ export class AnidbUDPClient {
         );
       }
       enc = ENCODINGS[encoding];
+    }
+
+    // with an api key the password never goes out in the clear
+    if (this.apiKey && !this.transport.encryptionKey) {
+      this.transport.session = null;
+      await this.encrypt(user, this.apiKey);
     }
 
     const resp = await this.callApi(
@@ -1131,23 +1158,32 @@ export class AnidbUDPClient {
     priority: number = DEFAULT_PRIORITY,
   ): Promise<ParsedResponse> {
     let error: AnidbError;
+    let lostByDecrypt = false;
     try {
       return await this.sendRequest(command, params, expected, priority);
     } catch (_e: unknown) {
+      lostByDecrypt = _e instanceof DecryptError;
       error = toAnidbError(_e);
     } finally {
       this.lastRequest = Date.now();
     }
 
-    // the server lost our session: log in again and send the command once more
+    // the server lost our session (a reply that cannot be decrypted is its plain
+    // 501 or 506 after it ended the encryption with the session): log in again
+    // and send the command once more
+    const sessionLost =
+      lostByDecrypt || SESSION_LOST_CODES.includes(error.code);
     if (
-      SESSION_LOST_CODES.includes(error.code) &&
+      sessionLost &&
       !NO_RELOGIN_COMMANDS.includes(command) &&
       this.credentials
     ) {
       try {
         const { user, pass, encoding } = this.credentials;
+        // the session ends the encryption too, the login starts over: ENCRYPT
+        // in the clear when there is an api key, then AUTH
         this.transport.session = null;
+        this.transport.encryptionKey = null;
         await this.login(user, pass, encoding);
         return await this.sendRequest(command, params, expected, priority);
       } catch (_e: unknown) {
@@ -1157,6 +1193,11 @@ export class AnidbUDPClient {
       }
     }
 
+    if (lostByDecrypt && !this.credentials) {
+      this.warn(
+        "AniDB sent a reply that cannot be decrypted, encryption is turned off for the rest of this connection",
+      );
+    }
     if (BAN_CODES.includes(error.code)) this.banned = error;
     if (FATAL_ERROR_CODES.includes(error.code)) {
       try {
@@ -1207,6 +1248,7 @@ export class AnidbUDPClient {
       clearTimeout(this.pingTimer);
       this.pingTimer = undefined;
       this.credentials = undefined;
+      this.apiKey = undefined;
       await this.transport.close();
       this.options.onDisconnect?.({ source, error });
     }
