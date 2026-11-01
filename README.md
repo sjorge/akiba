@@ -56,13 +56,22 @@ akiba idmap 18700 --tmdbid 259140
 # Unmap the tmdb tv series for Ranma1/2 (2024)
 akiba idmap 18700 --no-tmdbid --no-show
 
+# Unmap the anilist entry for Ranma1/2 (2024)
+akiba idmap 18700 --no-anilistid --no-show
+
 # Blacklist the tmdb lookup for this anime, so it is not looked up again
 # (`--tmdbid -1` is the same; unlike --no-tmdbid, which looks it up again)
 akiba idmap 18700 --tmdbid blacklist
 
+# Blacklist the anilist lookup for this anime, so it is not looked up again
+# (`--anilistid -1` is the same; unlike --no-anilistid, which looks it up again)
+akiba idmap 18700 --anilistid blacklist
+
 # Show additional flags
 akiba idmap --help
 ```
+
+A blacklisted **anilist** or **tmdb** id is skipped by the automatic lookups, and it is left out of the NFO files. Use it when an anime has no entry on that site, or when the search keeps finding the wrong one.
 
 ### Command: write-nfo
 
@@ -75,9 +84,18 @@ Please register a project on https://anidb.net/software/add, and add a HTTP clie
 akiba configure --anidb-http-client examplehttpclient/1
 # optional: enable saving poster.jpg
 akiba configure --anidb-poster
-# optional: overwrite nfo files by default
+# optional: overwrite existing nfo and poster.jpg files by default
 akiba configure --overwrite-nfo
 ```
+
+Existing NFO files are kept unless they are overwritten. Use `--force` for a single run, or set `overwrite_nfo` with `akiba configure --overwrite-nfo` to overwrite them by default (`--no-overwrite-nfo` turns that off again). The config key is honoured without `--force`. Both also replace an existing `poster.jpg`, which is only downloaded when `--anidb-poster` is enabled.
+
+```bash
+# overwrite the existing NFO files and poster.jpg of one anime
+akiba write-nfo /mnt/anime/Ranma --force
+```
+
+The NFO files get their modification time from AniDB: `tvshow.nfo` gets the start date of the anime, and each episode NFO gets the air date of the first episode in its file. A date with only a year, or a year and a month, counts as the first day of that period. The time is noon UTC, so the date reads the same in every time zone. If the date is missing or before 1970, the file keeps the time it was written with.
 
 Aside from using the local `akiba idmap` command, we also use [Fribb's Anime-List](https://github.com/Fribb/anime-lists).
 If a verified mapping is not present in either of these, the **Anilist** and **tmdb** API can be used to do a search. This however required additional configuration.
@@ -128,3 +146,11 @@ If you are migrating from `adbren` here are the presets updates for use with aki
 "{anime_name_romaji} - {episode} - {episode_name} ({crc32}).{filetype}"
 "[{group_short}] {anime_name_english} - {episode} - {episode_name} ({crc32}).{filetype}"
 ```
+
+#### Sidecar files
+
+Files that share the name of an episode follow it when `rename` moves, copies or symlinks the episode. This covers `.nfo` files and subtitles (`srt`, `ass`, `ssa`, `vtt`, `sub`, `idx`, `sup` and `mks`), with or without a language tag. `Show - 01.mkv` takes `Show - 01.nfo` and `Show - 01.en.srt` along, and they are renamed to match the new name. A file that belongs to a longer episode stays with that episode, so `Show - 1.5.srt` goes with `Show - 1.5.mkv` and not with `Show - 1.mkv`.
+
+An existing file at the destination is kept, unless `--force` is given, which overwrites it the same way as the episode. With `--copy` the originals stay where they are, and with `--symlink` a symlink to the new file is left at each old path. A move across file systems copies the file and then removes the original.
+
+`--copy` and a move across file systems keep the modification time of the original, for the episode and its sidecars alike.
