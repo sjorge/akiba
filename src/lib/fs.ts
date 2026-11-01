@@ -28,13 +28,16 @@ function removeQuietly(file: string): void {
  * content, never a truncated file. The data is first staged in the local
  * temporary directory, so a failure there never touches the (possibly remote)
  * target directory. It is then copied to a temporary file next to `file`,
- * which is renamed over it. Both temporary files are removed when a step
- * fails, and the error is rethrown.
+ * which is renamed over it. With `modified` the new file gets that modification
+ * time before the rename, so readers never see the new content with the old
+ * time. Both temporary files are removed when a step fails, and the error is
+ * rethrown.
  */
 export function writeFileAtomic(
   file: string,
   data: string,
   mode: number,
+  modified?: Date,
 ): void {
   const staged = path.join(os.tmpdir(), tempName(file));
   const tmp = path.join(path.dirname(file), tempName(file));
@@ -43,6 +46,10 @@ export function writeFileAtomic(
     fs.writeFileSync(staged, data, { encoding: "utf8", mode });
     fs.copyFileSync(staged, tmp);
     fs.chmodSync(tmp, mode);
+    if (modified !== undefined) {
+      // NOTE: the access time is kept as the copy has it
+      fs.utimesSync(tmp, fs.statSync(tmp).atime, modified);
+    }
     // NOTE: rename within one directory is atomic on local filesystems and on
     // SMB/NFS shares, which is why the copy lives next to the target
     fs.renameSync(tmp, file);
@@ -51,6 +58,20 @@ export function writeFileAtomic(
     throw _e;
   } finally {
     removeQuietly(staged);
+  }
+}
+
+/*
+ * Give `destination` the access and modification time of `source`. A copy
+ * made by fs.copyFileSync does not keep them. Best effort: a failure is
+ * ignored, the copy is good either way.
+ */
+export function copyTimes(source: string, destination: string): void {
+  try {
+    const stat = fs.statSync(source);
+    fs.utimesSync(destination, stat.atime, stat.mtime);
+  } catch {
+    // best effort, the copy is kept either way
   }
 }
 

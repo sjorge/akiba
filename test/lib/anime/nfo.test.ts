@@ -137,4 +137,71 @@ test("AnimeShowNfo checks the start date as a premiered date", (): void => {
   );
 });
 
+test("AnimeShowNfo takes the start date as the modification time at noon UTC", (): void => {
+  // a partial date is its first day, a year alone is January 1st
+  expect(showNfo().tvShow.modified).toEqual(new Date(Date.UTC(2020, 0, 1, 12)));
+  expect(
+    showNfo({ anidb: 100 }, { startDate: "2020-02-03" }).tvShow.modified,
+  ).toEqual(new Date(Date.UTC(2020, 1, 3, 12)));
+  expect(
+    showNfo({ anidb: 100 }, { startDate: "2020" }).tvShow.modified,
+  ).toEqual(new Date(Date.UTC(2020, 0, 1, 12)));
+  expect(
+    showNfo({ anidb: 100 }, { startDate: "1970-01-01" }).tvShow.modified,
+  ).toEqual(new Date(43_200_000));
+
+  // a missing, malformed, impossible or early date leaves the time alone
+  for (const startDate of [
+    "",
+    "abc",
+    "2020-1-5",
+    "2020-13-01",
+    "2020-02-30",
+    "2021-02-29",
+    "2020-01-01-01",
+    "1969-12-31",
+    "1900",
+  ]) {
+    expect(
+      showNfo({ anidb: 100 }, { startDate }).tvShow.modified,
+      startDate,
+    ).toBeUndefined();
+  }
+});
+
+test("AnimeEpisodeNfo takes the air date of each episode as its modification time", (): void => {
+  // the first episode of a range sets the time of the NFO
+  const range = episodeNfo("1", "3").episode;
+  expect(range.map((e) => e.modified)).toEqual([
+    new Date(Date.UTC(2020, 0, 8, 12)),
+    new Date(Date.UTC(2020, 0, 1, 12)),
+    undefined,
+  ]);
+});
+
+test("AnimeEpisodeNfo.write sets the NFO time from the first episode", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const media = path.join(dir, "Show - 01-03.mkv");
+  fs.writeFileSync(media, "");
+  const nfo = new AnimeEpisodeNfo(
+    { anidb: 100 },
+    { path: media, episodeStart: "1", episodeEnd: "3", title: "File" },
+    makeShow(),
+  );
+  expect(await nfo.write()).toBe(true);
+  expect(fs.statSync(path.join(dir, "Show - 01-03.nfo")).mtime.getTime()).toBe(
+    Date.UTC(2020, 0, 8, 12),
+  );
+});
+
+test("AnimeShowNfo.write gives tvshow.nfo the start date", async (): Promise<void> => {
+  const dir = makeTempDir();
+  expect(
+    await new AnimeShowNfo({ anidb: 100 }, makeShow(), dir).write(false, false),
+  ).toBe(true);
+  expect(fs.statSync(path.join(dir, "tvshow.nfo")).mtime.getTime()).toBe(
+    Date.UTC(2020, 0, 1, 12),
+  );
+});
+
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

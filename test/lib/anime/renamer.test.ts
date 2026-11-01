@@ -324,6 +324,54 @@ test("AnimeRenamer.rename handles moves across devices", async (): Promise<void>
   }
 });
 
+test("AnimeRenamer.rename keeps the file times of moves, copies and cross-device moves", async (): Promise<void> => {
+  const episodeTime = new Date(1_500_000_000_000);
+  const sidecarTime = new Date(1_400_000_000_000);
+  const mtimeOf = (file: string): number => fs.statSync(file).mtime.getTime();
+  function setTimes(f: Fixture): void {
+    fs.utimesSync(f.source, episodeTime, episodeTime);
+    fs.utimesSync(inSourceDir(f, "source.nfo"), sidecarTime, sidecarTime);
+  }
+
+  // a move on one file system is a plain rename
+  let f = fixture();
+  writeSidecars(f, ["source.nfo"]);
+  setTimes(f);
+  await f.renamer.rename(await f.episode());
+  expect(mtimeOf(f.destination)).toBe(episodeTime.getTime());
+  expect(mtimeOf(inDestinationDir(f, "13.nfo"))).toBe(sidecarTime.getTime());
+
+  // a copy gives the episode and its sidecar the times of their sources
+  f = fixture();
+  writeSidecars(f, ["source.nfo"]);
+  setTimes(f);
+  await f.renamer.rename(await f.episode(), false, true);
+  expect(mtimeOf(f.destination)).toBe(episodeTime.getTime());
+  expect(mtimeOf(inDestinationDir(f, "13.nfo"))).toBe(sidecarTime.getTime());
+  expect(mtimeOf(f.source)).toBe(episodeTime.getTime());
+
+  // so does the copy fallback of a move across devices
+  f = fixture();
+  writeSidecars(f, ["source.nfo"]);
+  setTimes(f);
+  const sidecar = inSourceDir(f, "source.nfo");
+  const real = fs.renameSync;
+  const spy = spyOn(fs, "renameSync").mockImplementation((from, to): void => {
+    if (from !== f.source && from !== sidecar) return real(from, to);
+    const e = new Error("EXDEV: cross-device link") as NodeJS.ErrnoException;
+    e.code = "EXDEV";
+    throw e;
+  });
+  try {
+    await f.renamer.rename(await f.episode());
+  } finally {
+    spy.mockRestore();
+  }
+  expect(fs.existsSync(f.source)).toBe(false);
+  expect(mtimeOf(f.destination)).toBe(episodeTime.getTime());
+  expect(mtimeOf(inDestinationDir(f, "13.nfo"))).toBe(sidecarTime.getTime());
+});
+
 test("AnimeRenamer.rename keeps destinations inside the target", async (): Promise<void> => {
   // NOTE: regression for refusing destinations outside the target path
   const dots = { anime_name_romaji: ".." };

@@ -51,6 +51,8 @@ export type TvShow = {
   studio?: string[];
   actor?: Actor[];
   poster?: string;
+  // NOTE: not written to the XML, it is the modification time of tvshow.nfo
+  modified?: Date;
 };
 
 export type Episode = {
@@ -61,6 +63,9 @@ export type Episode = {
   season?: number;
   episode?: number;
   plot?: string;
+  // NOTE: not written to the XML, the first episode of a file gives the
+  // modification time of its NFO
+  modified?: Date;
 };
 
 function ensureJellyfinIdType(type: string): string {
@@ -185,6 +190,7 @@ export class TvShowNfo {
           nfoPath,
           show.up().end({ prettyPrint: true }),
           FILE_MODE,
+          this.tvShow.modified,
         );
       }
     } catch {
@@ -332,6 +338,7 @@ export class EpisodeNfo {
           "\n" +
           nfo.end({ prettyPrint: true }),
         FILE_MODE,
+        this.episode[0].modified,
       );
     } catch {
       return false;

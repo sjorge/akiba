@@ -408,4 +408,72 @@ test("TvShowNfo.write touches poster.jpg only when fetching and overwriting", as
   }
 });
 
+function mtimeMs(file: string): number {
+  return fs.statSync(file).mtime.getTime();
+}
+
+test("TvShowNfo.write gives tvshow.nfo the modification time of the show", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const time = new Date(Date.UTC(2020, 0, 1, 12));
+  const tvshow = path.join(dir, "tvshow.nfo");
+
+  expect(
+    await new TvShowNfo(show({ modified: time }), dir).write(false, false),
+  ).toBe(true);
+  expect(mtimeMs(tvshow)).toBe(time.getTime());
+
+  // a kept tvshow.nfo keeps its content and its time
+  const old = new Date(1_000_000_000_000);
+  fs.writeFileSync(tvshow, "old");
+  fs.utimesSync(tvshow, old, old);
+  expect(
+    await new TvShowNfo(
+      show({ modified: new Date(Date.UTC(2021, 0, 1, 12)) }),
+      dir,
+    ).write(false, false),
+  ).toBe(true);
+  expect(fs.readFileSync(tvshow, "utf8")).toBe("old");
+  expect(mtimeMs(tvshow)).toBe(old.getTime());
+
+  // overwrite rewrites it and sets the time
+  expect(
+    await new TvShowNfo(
+      show({ modified: new Date(Date.UTC(2021, 0, 1, 12)) }),
+      dir,
+    ).write(true, false),
+  ).toBe(true);
+  expect(mtimeMs(tvshow)).toBe(Date.UTC(2021, 0, 1, 12));
+});
+
+test("EpisodeNfo.write gives the episode NFO the modification time of its first episode", async (): Promise<void> => {
+  const file = episodeFile();
+  const nfoPath = file.replace(/\.mkv$/, ".nfo");
+  const time = new Date(Date.UTC(2020, 0, 8, 12));
+
+  expect(
+    await new EpisodeNfo(
+      [episode({ modified: time }), episode({ modified: new Date(0) })],
+      file,
+    ).write(),
+  ).toBe(true);
+  expect(mtimeMs(nfoPath)).toBe(time.getTime());
+
+  // a kept episode NFO keeps its content and its time
+  const old = new Date(1_000_000_000_000);
+  fs.writeFileSync(nfoPath, "old");
+  fs.utimesSync(nfoPath, old, old);
+  expect(
+    await new EpisodeNfo([episode({ modified: time })], file).write(false),
+  ).toBe(true);
+  expect(fs.readFileSync(nfoPath, "utf8")).toBe("old");
+  expect(mtimeMs(nfoPath)).toBe(old.getTime());
+});
+
+test("an NFO without a modification time keeps the time of writing", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const before = Date.now() - 1000;
+  expect(await new TvShowNfo(show(), dir).write(false, false)).toBe(true);
+  expect(mtimeMs(path.join(dir, "tvshow.nfo"))).toBeGreaterThan(before);
+});
+
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

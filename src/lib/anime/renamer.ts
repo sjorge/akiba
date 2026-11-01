@@ -13,7 +13,7 @@ import { log } from "lib/logger";
 import { parseWholeInteger } from "lib/number";
 
 import { generateEd2kHash } from "lib/ed2khash";
-import { writeFileAtomic } from "lib/fs";
+import { copyTimes, writeFileAtomic } from "lib/fs";
 import {
   NAME_MAX,
   findSidecars,
@@ -614,7 +614,10 @@ export class AnimeRenamer {
         // rename episode
         if (copy) {
           // NOTE: fs.copyFileSync overwrites by default
-          if (!dryRun) fs.copyFileSync(sourcePath, destinationPath);
+          if (!dryRun) {
+            fs.copyFileSync(sourcePath, destinationPath);
+            copyTimes(sourcePath, destinationPath);
+          }
         } else {
           try {
             if (!dryRun) fs.renameSync(sourcePath, destinationPath);
@@ -625,6 +628,7 @@ export class AnimeRenamer {
             // fallback to copy for filesystem boundaries
             if (!dryRun) {
               fs.copyFileSync(sourcePath, destinationPath);
+              copyTimes(sourcePath, destinationPath);
               fs.unlinkSync(sourcePath);
             }
           }
@@ -707,12 +711,14 @@ export class AnimeRenamer {
         if (!dryRun) {
           if (action === "copy") {
             fs.copyFileSync(source, destination);
+            copyTimes(source, destination);
           } else {
             try {
               fs.renameSync(source, destination);
             } catch (_e: unknown) {
               if ((_e as NodeJS.ErrnoException).code !== "EXDEV") throw _e;
               fs.copyFileSync(source, destination);
+              copyTimes(source, destination);
               fs.unlinkSync(source);
             }
             if (action === "symlink") fs.symlinkSync(destination, source);

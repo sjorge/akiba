@@ -3,7 +3,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { expect, spyOn, test } from "bun:test";
 
-import { writeFileAtomic, writeStreamAtomic } from "lib/fs";
+import { copyTimes, writeFileAtomic, writeStreamAtomic } from "lib/fs";
 import { makeTempDir } from "test/helpers";
 
 function mode(file: string): number {
@@ -118,6 +118,60 @@ test("writeStreamAtomic keeps the old file when the rename fails", async (): Pro
 
   expect(fs.readFileSync(file, "utf8")).toBe("OLD");
   expect(fs.readdirSync(dir)).toEqual(["poster.jpg"]);
+});
+
+test("writeFileAtomic sets the modification time of the new file", (): void => {
+  const dir = makeTempDir();
+  const file = path.join(dir, "tvshow.nfo");
+  const time = new Date(Date.UTC(2020, 0, 1, 12));
+
+  writeFileAtomic(file, "<tvshow/>", 0o644, time);
+
+  expect(fs.statSync(file).mtime.getTime()).toBe(time.getTime());
+  expect(fs.readdirSync(dir)).toEqual(["tvshow.nfo"]);
+});
+
+test("writeFileAtomic keeps the old file when the time cannot be set", (): void => {
+  const dir = makeTempDir();
+  const file = path.join(dir, "tvshow.nfo");
+  fs.writeFileSync(file, "old");
+
+  const failing = spyOn(fs, "utimesSync").mockImplementation((): void => {
+    throw new Error("EPERM: operation not permitted");
+  });
+  try {
+    expect(() =>
+      writeFileAtomic(file, "new", 0o644, new Date(Date.UTC(2020, 0, 1, 12))),
+    ).toThrow("EPERM");
+  } finally {
+    failing.mockRestore();
+  }
+
+  expect(fs.readFileSync(file, "utf8")).toBe("old");
+  expect(fs.readdirSync(dir)).toEqual(["tvshow.nfo"]);
+});
+
+test("copyTimes gives the destination the access and modification time of the source", (): void => {
+  const dir = makeTempDir();
+  const source = path.join(dir, "source.mkv");
+  const destination = path.join(dir, "copy.mkv");
+  fs.writeFileSync(source, "abc");
+  fs.writeFileSync(destination, "abc");
+  const atime = new Date(1_400_000_000_000);
+  const mtime = new Date(1_500_000_000_000);
+  fs.utimesSync(source, atime, mtime);
+
+  copyTimes(source, destination);
+
+  expect(fs.statSync(destination).atime.getTime()).toBe(atime.getTime());
+  expect(fs.statSync(destination).mtime.getTime()).toBe(mtime.getTime());
+});
+
+test("copyTimes ignores a failure", (): void => {
+  const dir = makeTempDir();
+  expect(() =>
+    copyTimes(path.join(dir, "missing.mkv"), path.join(dir, "copy.mkv")),
+  ).not.toThrow();
 });
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

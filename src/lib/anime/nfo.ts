@@ -15,6 +15,26 @@ import type { TvShow, Episode, UniqueId } from "lib/nfo";
 import { TvShowNfo, EpisodeNfo } from "lib/nfo";
 import { parseWholeInteger } from "lib/number";
 
+/*
+ * The modification time for an AniDB date: 12:00 UTC of the day, so the date
+ * reads the same in every time zone. `YYYY-MM` is its first day and `YYYY` is
+ * January 1st. A missing, malformed or impossible date, or one before 1970, has
+ * no time.
+ */
+function fileTime(date: string | undefined): Date | undefined {
+  const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(date ?? "");
+  if (!match) return undefined;
+
+  const year = Number(match[1]);
+  const month = Number(match[2] ?? 1);
+  const day = Number(match[3] ?? 1);
+  if (year < 1970 || month < 1 || month > 12) return undefined;
+
+  const time = new Date(Date.UTC(year, month - 1, day, 12));
+  // NOTE: Date.UTC rolls a day that does not exist over, e.g. February 30th
+  return time.getUTCDate() === day ? time : undefined;
+}
+
 export class AnimeShowNfo extends TvShowNfo {
   public constructor(id: AnimeId, metadata: AniDB_Show, path: string) {
     // NOTE: the NFO needs a title, so a show without titles is refused
@@ -68,6 +88,7 @@ export class AnimeShowNfo extends TvShowNfo {
     } else if (metadata.startDate && metadata.startDate.length == 7) {
       this.tvShow.premiered = `${metadata.startDate}-01`;
     }
+    this.tvShow.modified = fileTime(metadata.startDate);
 
     // update poster
     if (metadata.picture)
@@ -165,6 +186,7 @@ export class AnimeEpisodeNfo extends EpisodeNfo {
         ) {
           episode.premiered = `${episodeMetadata.airDate}-01`;
         }
+        episode.modified = fileTime(episodeMetadata.airDate);
 
         this.episode.push(episode);
       }
