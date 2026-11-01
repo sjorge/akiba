@@ -1,0 +1,36 @@
+[package]
+name = "akiba-core"
+description = "Shared akiba library: config, cache, logger, idmap, nfo, renamer"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+gethostname = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+terminal_size = { workspace = true }
+anidb-http = { path = "../anidb-http" }
+anidb-udp = { path = "../anidb-udp" }
+ed2k = { path = "../ed2k" }
+regex = { workspace = true }
+unicode-normalization = { workspace = true }
+alphanumeric-sort = { workspace = true }
+quick-xml = { workspace = true }
+ureq = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+filetime.workspace = true
+serial_test = { workspace = true }
+strsim = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
