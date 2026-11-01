@@ -132,6 +132,7 @@ The live tests in `tests/live.rs` talk to the real AniDB server. They are `#[ign
 - `AKIBA_LIVE_LOCAL_PORT` sets the fixed local port of all live tests. The default is 40137. A busy port is an error, the tests never fall back to another port.
 - The tests take turns: a process-wide lock is held for each test, even without `--test-threads=1`. Each test ends with a 5 second pause, so the next test starts a request interval after the last request.
 - After a ban (504 or 555) the remaining live tests fail at once, without sending anything.
+- The AniDB server sometimes answers `602 SERVER BUSY` or does not answer a request at all (a `671` timeout after 30 seconds), also for requests that are fine. The client sends nothing twice, so such a run fails. That is no reason to run again at once: wait at least 30 minutes, and read the trace (`trace:` lines) to see which request got no reply.
 
 ```text
 AKIBA_LIVE_USER=.. AKIBA_LIVE_PASS=.. AKIBA_LIVE_CLIENT=.. [AKIBA_LIVE_APIKEY=..] \
