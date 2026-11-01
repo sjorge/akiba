@@ -143,6 +143,18 @@ test("write-nfo keeps existing NFO files unless --force is given", async (): Pro
   );
 });
 
+test("write-nfo labels a prefixed episode range with its written ends", async (): Promise<void> => {
+  const dir = setUpRun({}, makeShow());
+  fs.writeFileSync(path.join(dir, "Test Show - S1-S3 - Specials.mkv"), "");
+
+  const { logged } = await runWriteNfo([dir, "--aid", "100"]);
+  const messages = logged.map((l) => l.msg);
+  expect(
+    messages.some((m) => m.endsWith(": Writing episode S1-S3 NFO ...")),
+  ).toBe(true);
+  expect(messages.some((m) => m.includes("NaN"))).toBe(false);
+});
+
 test("write-nfo overwrites existing NFO files when overwrite_nfo is set", async (): Promise<void> => {
   const dir = setUpRun({ overwrite_nfo: true }, makeShow());
   fs.writeFileSync(path.join(dir, "tvshow.nfo"), "old");

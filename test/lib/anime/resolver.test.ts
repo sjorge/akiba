@@ -67,4 +67,43 @@ test("AnimeResolver.episodes parses a directory of episode files", (): void => {
   expect(resolver.episodes(path.join(dir, "garbage.mkv"))).toEqual([]);
 });
 
+test("AnimeResolver.episodes keeps prefixed range ends as written", (): void => {
+  const dir = makeTempDir();
+  for (const file of [
+    "Show - S1-S3 - Specials.mkv",
+    "Show - C01-C02 - Credits.mkv",
+    "Show - S01-03 - Mixed.mkv",
+    "Show - 001-003 - Plain.mkv",
+  ]) {
+    fs.writeFileSync(path.join(dir, file), "");
+  }
+  const resolver = new AnimeResolver(makeConfig());
+
+  // only plain digits lose their leading zeros, a prefixed end is kept as is
+  const episodes = resolver.episodes(dir);
+  expect(
+    Object.fromEntries(
+      episodes.map((e) => [e.title, [e.episodeStart, e.episodeEnd]]),
+    ),
+  ).toEqual({
+    Specials: ["S1", "S3"],
+    Credits: ["C01", "C02"],
+    Mixed: ["S01", "3"],
+    Plain: ["1", "3"],
+  });
+});
+
+test("AnimeResolver.id replaces every fraction slash in a title", async (): Promise<void> => {
+  const config = makeConfig();
+  seedCacheFile(config.cache.path, "titles.map.toml", {
+    "6": [{ title: "A/B/C/D/E/F", type: "main", language: "x-jat" }],
+  });
+  const resolver = new AnimeResolver(config);
+  await resolver.refresh();
+
+  // five fraction slashes differ from the cached title by more than the fuzzy
+  // threshold, so only a full replacement finds it
+  expect(resolver.id("A⁄B⁄C⁄D⁄E⁄F")).toEqual({ anidb: 6 });
+});
+
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab

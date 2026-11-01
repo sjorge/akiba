@@ -58,6 +58,15 @@ const episodeMultiTitleRegEx = new RegExp(
 );
 const episodeCrc32RegEx = new RegExp(/.+(?<crc32>\([A-Za-z0-9]{8}\))/);
 
+/*
+ * Strip leading zeros from a plain episode number (`01` is `1`, `000` is `0`).
+ * A number with a type prefix (`S01`, `C1`) is kept exactly as written.
+ */
+function normaliseEpisode(episode: string): string {
+  if (!/^\d+$/.test(episode)) return episode;
+  return episode.replace(/^0+(?=\d)/, "");
+}
+
 export class AnimeResolver {
   private titleFile: string;
   private titleCacheAge: number;
@@ -150,7 +159,7 @@ export class AnimeResolver {
     }
 
     // fuzzy search
-    const titleNormalized: string = title.replace("⁄", "/");
+    const titleNormalized: string = title.replaceAll("⁄", "/");
 
     let exact_match: number | undefined;
     let best_match: number | undefined;
@@ -206,16 +215,12 @@ export class AnimeResolver {
       let episode: string[] = [];
       if (singleEpisode) {
         title = singleEpisode?.title;
-        episode = [
-          singleEpisode?.episode.startsWith("0")
-            ? `${parseInt(singleEpisode?.episode, 10)}`
-            : `${singleEpisode?.episode}`,
-        ];
+        episode = [normaliseEpisode(singleEpisode?.episode)];
       } else if (multiEpisode) {
         title = multiEpisode?.title;
-        episode = multiEpisode?.episode.split("-").map((ep: string): string => {
-          return `${parseInt(ep, 10)}`;
-        });
+        episode = multiEpisode?.episode
+          .split("-")
+          .map((ep: string): string => normaliseEpisode(ep));
       }
 
       // skip if we couldn't parse the episode filename
