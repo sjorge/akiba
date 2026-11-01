@@ -1,0 +1,22 @@
+[package]
+name = "anidb-udp"
+description = "Self-contained AniDB UDP API client"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aes.workspace = true
+ecb.workspace = true
+flate2.workspace = true
+md-5.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+toml.workspace = true
