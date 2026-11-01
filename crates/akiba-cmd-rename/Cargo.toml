@@ -1,0 +1,22 @@
+[package]
+name = "akiba-cmd-rename"
+description = "The akiba rename command: rename episodes by their AniDB record"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+akiba-core = { path = "../akiba-core" }
+anidb-udp = { path = "../anidb-udp" }
+clap.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+akiba-test-support = { path = "../akiba-test-support" }
+ed2k = { path = "../ed2k" }
+
+[lints]
+workspace = true
