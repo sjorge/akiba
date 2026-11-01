@@ -270,7 +270,7 @@ export function addNfoCommand(program: Command): void {
     )
     .addOption(new Option("--fresh", "force retrieve metadata").default(false))
     .addOption(
-      new Option("--force", "overwrite existing NFO files").default(false),
+      new Option("--force", "overwrite existing NFO files and poster.jpg").default(false),
     )
     .action(nfoAction);
 }
