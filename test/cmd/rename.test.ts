@@ -79,7 +79,8 @@ test("rename skips a file unknown to AniDB and still renames the next", async ()
     expect(fs.existsSync(unknown)).toBe(true);
     expect(output).not.toContain("AniDB UDP Client:");
   } finally {
-    process.exitCode = previousExitCode;
+    // NOTE: Bun ignores an undefined exit code, so 0 is the reset value
+    process.exitCode = previousExitCode ?? 0;
     banner.mockRestore();
     stderr.mockRestore();
     stdout.mockRestore();

@@ -21,7 +21,8 @@ async function runConfigure(args: string[]): Promise<void> {
   try {
     await program.parseAsync(["configure", ...args], { from: "user" });
   } finally {
-    process.exitCode = previousExitCode;
+    // NOTE: Bun ignores an undefined exit code, so 0 is the reset value
+    process.exitCode = previousExitCode ?? 0;
     log.mockRestore();
     banner.mockRestore();
   }
