@@ -14,6 +14,12 @@ import { parseWholeInteger } from "lib/number";
 
 import { generateEd2kHash } from "lib/ed2khash";
 import { writeFileAtomic } from "lib/fs";
+import {
+  NAME_MAX,
+  findSidecars,
+  fitSidecarName,
+  sidecarName,
+} from "lib/anime/sidecar";
 
 import type { Config } from "lib/config";
 import type { Ed2kHash } from "lib/ed2khash";
@@ -40,9 +46,6 @@ function truncateName(name: string, length: number): string {
     ? `${name.substring(0, length).trimEnd()}~`
     : name;
 }
-
-// NOTE: the file name limit of ext4, APFS, ZFS and SMB
-const NAME_MAX = 255;
 
 /*
  * Shorten the anime and episode names after a name was too long
@@ -127,12 +130,22 @@ type HashCache = {
   [path: string]: Ed2kHash;
 };
 
+export type AnimeRenamerSidecar = {
+  source: string;
+  destination: string;
+  action: "move" | "copy" | "symlink";
+  // set when the sidecar could not be placed, the episode itself stays renamed
+  error?: string;
+};
+
 export type AnimeRenamerEpisode = {
   path: string;
   ed2khash: Ed2kHash;
   data?: AnimeStringFormatData;
   action?: "move" | "copy" | "symlink" | "uptodate";
   destination_path?: string;
+  // what happened to the sidecar files (`<stem>.nfo`, `<stem>.en.srt`, ...)
+  sidecars?: AnimeRenamerSidecar[];
 };
 
 export class AnimeRenamer {
@@ -648,7 +661,70 @@ export class AnimeRenamer {
       this.writeHashCache();
     }
 
+    // NOTE: after the hash cache, a sidecar problem must not hide that the
+    // episode was renamed
+    episode.sidecars = this.placeSidecars(
+      sourcePath,
+      destinationPath,
+      copy ? "copy" : symlink ? "symlink" : "move",
+      overwrite,
+      dryRun,
+    );
+
     return episode;
+  }
+
+  /*
+   * Move, copy or link the sidecars of `sourcePath` next to `destinationPath`,
+   * the same way as the episode. A failure is kept in the result.
+   */
+  private placeSidecars(
+    sourcePath: string,
+    destinationPath: string,
+    action: AnimeRenamerSidecar["action"],
+    overwrite: boolean,
+    dryRun: boolean,
+  ): AnimeRenamerSidecar[] {
+    const sourceStem = path.parse(sourcePath).name;
+    const destinationStem = path.parse(destinationPath).name;
+    const results: AnimeRenamerSidecar[] = [];
+
+    for (const tail of findSidecars(sourcePath, sourceStem)) {
+      const source = path.join(
+        path.dirname(sourcePath),
+        sidecarName(sourceStem, tail),
+      );
+      const destination = path.join(
+        path.dirname(destinationPath),
+        fitSidecarName(destinationStem, tail),
+      );
+      if (source === destination) continue;
+      // keep an existing destination without overwrite
+      if (fs.existsSync(destination) && !overwrite) continue;
+
+      const result: AnimeRenamerSidecar = { source, destination, action };
+      try {
+        if (!dryRun) {
+          if (action === "copy") {
+            fs.copyFileSync(source, destination);
+          } else {
+            try {
+              fs.renameSync(source, destination);
+            } catch (_e: unknown) {
+              if ((_e as NodeJS.ErrnoException).code !== "EXDEV") throw _e;
+              fs.copyFileSync(source, destination);
+              fs.unlinkSync(source);
+            }
+            if (action === "symlink") fs.symlinkSync(destination, source);
+          }
+        }
+      } catch (_e: unknown) {
+        result.error = (_e as Error).message;
+      }
+      results.push(result);
+    }
+
+    return results;
   }
 
   public async setMylistState(

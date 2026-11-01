@@ -479,3 +479,277 @@ test("AnimeRenamer.identify disconnects and rethrows on other AniDB errors", asy
 });
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
+
+// NOTE: writes one sidecar per name next to the source, each holding its name
+function writeSidecars(f: Fixture, names: string[]): void {
+  for (const name of names)
+    fs.writeFileSync(path.join(path.dirname(f.source), name), name);
+}
+
+function inSourceDir(f: Fixture, name: string): string {
+  return path.join(path.dirname(f.source), name);
+}
+
+function inDestinationDir(f: Fixture, name: string): string {
+  return path.join(path.dirname(f.destination), name);
+}
+
+// the source episode under another name, so sidecars can have another stem
+function renameSource(f: Fixture, name: string): void {
+  const renamed = inSourceDir(f, name);
+  fs.renameSync(f.source, renamed);
+  f.source = renamed;
+}
+
+function sortedNames(dir: string): string[] {
+  return fs.readdirSync(dir).sort();
+}
+
+test("AnimeRenamer.rename moves the sidecar nfo with the episode", async (): Promise<void> => {
+  const f = fixture();
+  writeSidecars(f, ["source.nfo"]);
+  const result = await f.renamer.rename(await f.episode());
+  expect(fs.existsSync(inSourceDir(f, "source.nfo"))).toBe(false);
+  expect(fs.readFileSync(inDestinationDir(f, "13.nfo"), "utf8")).toBe(
+    "source.nfo",
+  );
+  expect(result.sidecars).toEqual([
+    {
+      source: inSourceDir(f, "source.nfo"),
+      destination: inDestinationDir(f, "13.nfo"),
+      action: "move",
+    },
+  ]);
+});
+
+test("AnimeRenamer.rename reports no sidecars when there are none", async (): Promise<void> => {
+  const f = fixture();
+  const result = await f.renamer.rename(await f.episode());
+  expect(result.sidecars ?? []).toEqual([]);
+  expect(sortedNames(path.dirname(f.destination))).toEqual(["13.mkv"]);
+});
+
+test("AnimeRenamer.rename moves every kind of sidecar and keeps the tags", async (): Promise<void> => {
+  const f = fixture();
+  const names = [
+    "source.nfo",
+    "source.sub",
+    "source.idx",
+    "source.de.srt",
+    "source.sup",
+    "source.vtt",
+    "source.ssa",
+    "source.mks",
+    "source.srt",
+    "source.eng.forced.ass",
+    "source.pt-BR.sdh.srt",
+    // case is kept as it is on disk
+    "source.EN.SRT",
+    "source.Ass",
+  ];
+  writeSidecars(f, names);
+  // not sidecars: another extension, another stem
+  writeSidecars(f, ["source.txt", "source 2.nfo", "source.srt.bak"]);
+  const result = await f.renamer.rename(await f.episode());
+  expect(result.sidecars?.length).toBe(names.length);
+  expect(result.sidecars?.every((s) => s.action === "move")).toBe(true);
+  expect(sortedNames(path.dirname(f.destination))).toEqual(
+    ["13.mkv", ...names.map((name) => name.replace("source", "13"))].sort(),
+  );
+  expect(sortedNames(path.dirname(f.source))).toEqual([
+    "source 2.nfo",
+    "source.srt.bak",
+    "source.txt",
+    "target",
+  ]);
+  expect(fs.readFileSync(inDestinationDir(f, "13.de.srt"), "utf8")).toBe(
+    "source.de.srt",
+  );
+});
+
+test("AnimeRenamer.rename requires a dot after the stem and keeps longer episodes' sidecars", async (): Promise<void> => {
+  const f = fixture();
+  renameSource(f, "Show - 1.mkv");
+  writeSidecars(f, [
+    "Show - 1.srt",
+    "Show - 10.srt",
+    "Show - 1 - Name.srt",
+    "Show - 1.5.srt",
+    "Show - 1.5.nfo",
+  ]);
+  // the extension of the longer episode is matched case-insensitively
+  fs.writeFileSync(inSourceDir(f, "Show - 1.5.MKV"), "x");
+  const result = await f.renamer.rename(await f.episode());
+  expect(result.sidecars?.length).toBe(1);
+  expect(fs.existsSync(inDestinationDir(f, "13.srt"))).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "Show - 10.srt"))).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "Show - 1 - Name.srt"))).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "Show - 1.5.srt"))).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "Show - 1.5.nfo"))).toBe(true);
+});
+
+test("AnimeRenamer.rename copies and links sidecars like the episode", async (): Promise<void> => {
+  let f = fixture();
+  writeSidecars(f, ["source.en.srt"]);
+  let result = await f.renamer.rename(await f.episode(), false, true);
+  expect(fs.existsSync(inSourceDir(f, "source.en.srt"))).toBe(true);
+  expect(fs.existsSync(inDestinationDir(f, "13.en.srt"))).toBe(true);
+  expect(result.sidecars?.[0].action).toBe("copy");
+
+  f = fixture();
+  writeSidecars(f, ["source.en.srt"]);
+  result = await f.renamer.rename(await f.episode(), false, false, true);
+  expect(fs.readlinkSync(inSourceDir(f, "source.en.srt"))).toBe(
+    inDestinationDir(f, "13.en.srt"),
+  );
+  expect(fs.readFileSync(inDestinationDir(f, "13.en.srt"), "utf8")).toBe(
+    "source.en.srt",
+  );
+  expect(result.sidecars?.[0].action).toBe("symlink");
+});
+
+test("AnimeRenamer.rename reports sidecars of a dry run and touches nothing", async (): Promise<void> => {
+  const f = fixture();
+  writeSidecars(f, ["source.en.srt", "source.ass"]);
+  const result = await f.renamer.rename(
+    await f.episode(),
+    false,
+    false,
+    false,
+    true,
+  );
+  expect(result.sidecars?.length).toBe(2);
+  expect(result.sidecars?.every((s) => s.error === undefined)).toBe(true);
+  expect(result.sidecars?.map((s) => s.destination).sort()).toEqual([
+    inDestinationDir(f, "13.ass"),
+    inDestinationDir(f, "13.en.srt"),
+  ]);
+  expect(fs.existsSync(inSourceDir(f, "source.en.srt"))).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "source.ass"))).toBe(true);
+  expect(fs.readdirSync(f.target)).toEqual([]);
+});
+
+test("AnimeRenamer.rename keeps an existing sidecar destination unless overwrite is set", async (): Promise<void> => {
+  for (const overwrite of [false, true]) {
+    const f = fixture();
+    writeSidecars(f, ["source.en.srt"]);
+    fs.mkdirSync(path.dirname(f.destination));
+    fs.writeFileSync(inDestinationDir(f, "13.en.srt"), "existing");
+    const result = await f.renamer.rename(await f.episode(), overwrite);
+    const kept = fs.readFileSync(inDestinationDir(f, "13.en.srt"), "utf8");
+    if (overwrite) {
+      expect(result.sidecars?.length).toBe(1);
+      expect(kept).toBe("source.en.srt");
+      expect(fs.existsSync(inSourceDir(f, "source.en.srt"))).toBe(false);
+    } else {
+      expect(result.sidecars ?? []).toEqual([]);
+      expect(kept).toBe("existing");
+      expect(fs.existsSync(inSourceDir(f, "source.en.srt"))).toBe(true);
+      // the episode itself is still renamed
+      expect(result.action).toBe("move");
+    }
+  }
+});
+
+test("AnimeRenamer.rename leaves the sidecars of an up to date episode alone", async (): Promise<void> => {
+  const f = fixture();
+  fs.mkdirSync(path.dirname(f.destination));
+  fs.renameSync(f.source, f.destination);
+  f.source = f.destination;
+  fs.writeFileSync(inDestinationDir(f, "13.nfo"), "x");
+  const result = await f.renamer.rename(await f.episode());
+  expect(result.action).toBe("uptodate");
+  expect(result.sidecars ?? []).toEqual([]);
+  expect(fs.readFileSync(inDestinationDir(f, "13.nfo"), "utf8")).toBe("x");
+});
+
+test("AnimeRenamer.rename never treats the episode as its own sidecar", async (): Promise<void> => {
+  const f = fixture();
+  renameSource(f, "source.mks");
+  const result = await f.renamer.rename(await f.episode(), false, true);
+  expect(result.sidecars ?? []).toEqual([]);
+  expect(fs.existsSync(f.source)).toBe(true);
+  expect(fs.existsSync(inDestinationDir(f, "13.mkv"))).toBe(true);
+});
+
+test("AnimeRenamer.rename cuts the stem of a sidecar name that is too long", async (): Promise<void> => {
+  let f = fixture("{anime_name_romaji}/{episode_name}.{filetype}");
+  writeSidecars(f, ["source.nfo"]);
+  let result = await f.renamer.rename(
+    await f.episode({ episode_name: "a".repeat(300) }),
+  );
+  const nfo = result.sidecars?.[0].destination as string;
+  expect(path.basename(nfo).endsWith("~.nfo")).toBe(true);
+  expect(nfo).toBe(
+    (result.destination_path as string).replace(/\.mkv$/, ".nfo"),
+  );
+  expect(fs.existsSync(nfo)).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "source.nfo"))).toBe(false);
+
+  // only the stem is cut, the tags stay
+  f = fixture("{anime_name_romaji}/{episode_name}.{filetype}");
+  writeSidecars(f, ["source.pt-BR.sdh.srt"]);
+  result = await f.renamer.rename(
+    await f.episode({ episode_name: "a".repeat(250) }),
+  );
+  expect(path.basename(result.destination_path as string)).toBe(
+    `${"a".repeat(250)}.mkv`,
+  );
+  const sidecar = result.sidecars?.[0];
+  expect(sidecar?.error).toBeUndefined();
+  expect(path.basename(sidecar?.destination as string)).toBe(
+    `${"a".repeat(240)}~.pt-BR.sdh.srt`,
+  );
+  expect(fs.existsSync(sidecar?.destination as string)).toBe(true);
+});
+
+test("AnimeRenamer.rename moves a sidecar across devices", async (): Promise<void> => {
+  const f = fixture();
+  writeSidecars(f, ["source.pt-BR.sdh.srt"]);
+  const sidecar = inSourceDir(f, "source.pt-BR.sdh.srt");
+  const real = fs.renameSync;
+  const spy = spyOn(fs, "renameSync").mockImplementation((from, to): void => {
+    if (from !== sidecar) return real(from, to);
+    const e = new Error("EXDEV: cross-device link") as NodeJS.ErrnoException;
+    e.code = "EXDEV";
+    throw e;
+  });
+  let result: AnimeRenamerEpisode;
+  try {
+    result = await f.renamer.rename(await f.episode());
+  } finally {
+    spy.mockRestore();
+  }
+  expect(result.sidecars?.[0].error).toBeUndefined();
+  expect(fs.existsSync(sidecar)).toBe(false);
+  expect(fs.readFileSync(inDestinationDir(f, "13.pt-BR.sdh.srt"), "utf8")).toBe(
+    "source.pt-BR.sdh.srt",
+  );
+});
+
+test("AnimeRenamer.rename reports a failing sidecar and keeps going", async (): Promise<void> => {
+  const f = fixture();
+  writeSidecars(f, ["source.nfo", "source.en.srt"]);
+  const real = fs.renameSync;
+  const spy = spyOn(fs, "renameSync").mockImplementation((from, to): void => {
+    if (!String(from).endsWith(".srt")) return real(from, to);
+    throw new Error("EACCES: permission denied");
+  });
+  let result: AnimeRenamerEpisode;
+  try {
+    result = await f.renamer.rename(await f.episode());
+  } finally {
+    spy.mockRestore();
+  }
+  // the episode is renamed and its hash record follows it
+  expect(result.action).toBe("move");
+  expect(fs.existsSync(f.destination)).toBe(true);
+  expect(fs.existsSync(f.source)).toBe(false);
+  expect(fs.existsSync(inSourceDir(f, "source.en.srt"))).toBe(true);
+  expect(fs.existsSync(inSourceDir(f, "source.nfo"))).toBe(false);
+  expect(result.sidecars?.length).toBe(2);
+  const failed = result.sidecars?.find((s) => s.source.endsWith(".srt"));
+  expect(failed?.error).toContain("EACCES");
+  const moved = result.sidecars?.find((s) => s.source.endsWith(".nfo"));
+  expect(moved?.error).toBeUndefined();
+});

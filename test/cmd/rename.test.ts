@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, spyOn, test } from "bun:test";
+import type { OptionValues } from "@commander-js/extra-typings";
 
 import * as logger from "lib/logger";
 import { renameAction } from "cmd/rename";
@@ -308,3 +309,172 @@ test("rename stops after an AniDB ban and reports the files not processed", asyn
 });
 
 // vim: tabstop=2 shiftwidth=2 softtabstop=0 smarttab expandtab
+
+// NOTE: renames dir with the AniDB calls faked, returns the output and the
+//       exit code of the run
+async function renameWithSidecars(
+  dir: string,
+  config: Config,
+  files: string[],
+  opts: OptionValues = {},
+  prepare: () => void = () => {},
+): Promise<{ output: string; code: number }> {
+  for (const file of files) await seedKnownFile(config, file, "Test Anime");
+  const connect = spyOn(AnidbUDPClient.prototype, "connect").mockResolvedValue(
+    undefined,
+  );
+  const disconnect = spyOn(
+    AnidbUDPClient.prototype,
+    "disconnect",
+  ).mockResolvedValue(undefined);
+  const banner = spyOn(logger, "banner").mockImplementation(() => {});
+  const output = captureOutput();
+  const previousExitCode = process.exitCode;
+  process.exitCode = 0;
+  try {
+    prepare();
+    await renameAction(dir, opts);
+    return { output: output.text(), code: Number(process.exitCode) };
+  } finally {
+    process.exitCode = previousExitCode ?? 0;
+    banner.mockRestore();
+    output.restore();
+    disconnect.mockRestore();
+    connect.mockRestore();
+    fs.rmSync(configFile, { force: true });
+  }
+}
+
+test("rename reports the sidecars that follow the episode", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const target = path.join(dir, "target");
+  const show = path.join(dir, "show");
+  fs.mkdirSync(target);
+  fs.mkdirSync(show);
+  const file = path.join(show, "b.mkv");
+  fs.writeFileSync(file, "known");
+  fs.writeFileSync(path.join(show, "b.srt"), "plain");
+  fs.writeFileSync(path.join(show, "b.en.srt"), "english");
+  fs.writeFileSync(path.join(show, "b.nfo"), "<episodedetails/>");
+  // not a sidecar of b.mkv: another stem
+  fs.writeFileSync(path.join(show, "b 10.srt"), "other");
+
+  const config = writeRenameConfig(target, "{anime_name_romaji}.{filetype}");
+  const { output, code } = await renameWithSidecars(show, config, [file]);
+
+  expect(code).toBe(0);
+  const video = path.join(target, "Test Anime.mkv");
+  expect(fs.existsSync(video)).toBe(true);
+  expect(fs.readFileSync(path.join(target, "Test Anime.srt"), "utf8")).toBe(
+    "plain",
+  );
+  expect(fs.readFileSync(path.join(target, "Test Anime.en.srt"), "utf8")).toBe(
+    "english",
+  );
+  expect(fs.existsSync(path.join(target, "Test Anime.nfo"))).toBe(true);
+  expect(fs.existsSync(path.join(show, "b.srt"))).toBe(false);
+  expect(fs.existsSync(path.join(show, "b 10.srt"))).toBe(true);
+
+  const videoAt = output.indexOf(`b.mkv: Moved to ${video}!`);
+  expect(videoAt).toBeGreaterThanOrEqual(0);
+  for (const [name, renamed] of [
+    ["b.srt", "Test Anime.srt"],
+    ["b.en.srt", "Test Anime.en.srt"],
+    ["b.nfo", "Test Anime.nfo"],
+  ]) {
+    const at = output.indexOf(
+      `${name}: Moved to ${path.join(target, renamed)}!`,
+    );
+    expect(at).toBeGreaterThan(videoAt);
+  }
+  expect(output).not.toContain("b 10.srt");
+});
+
+test("rename reports copied and symlinked sidecars", async (): Promise<void> => {
+  for (const opts of [{ copy: true }, { symlink: true }]) {
+    const dir = makeTempDir();
+    const target = path.join(dir, "target");
+    const show = path.join(dir, "show");
+    fs.mkdirSync(target);
+    fs.mkdirSync(show);
+    const file = path.join(show, "b.mkv");
+    fs.writeFileSync(file, "known");
+    fs.writeFileSync(path.join(show, "b.en.srt"), "english");
+
+    const config = writeRenameConfig(target, "{anime_name_romaji}.{filetype}");
+    const { output } = await renameWithSidecars(show, config, [file], opts);
+
+    const destination = path.join(target, "Test Anime.en.srt");
+    const suffix = opts.copy ? "Copied" : "Moved";
+    const linked = opts.symlink ? " and symlinked" : "";
+    expect(output).toContain(`b.en.srt: ${suffix} to ${destination}${linked}!`);
+    expect(fs.existsSync(destination)).toBe(true);
+  }
+});
+
+test("rename reports a dry run of the sidecars without touching them", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const target = path.join(dir, "target");
+  const show = path.join(dir, "show");
+  fs.mkdirSync(target);
+  fs.mkdirSync(show);
+  const file = path.join(show, "b.mkv");
+  fs.writeFileSync(file, "known");
+  fs.writeFileSync(path.join(show, "b.nfo"), "x");
+
+  const config = writeRenameConfig(target, "{anime_name_romaji}.{filetype}");
+  const { output, code } = await renameWithSidecars(show, config, [file], {
+    dryRun: true,
+  });
+
+  expect(code).toBe(0);
+  expect(output).toContain(
+    `b.nfo: Moved to ${path.join(target, "Test Anime.nfo")}!`,
+  );
+  expect(fs.existsSync(path.join(show, "b.nfo"))).toBe(true);
+  expect(fs.readdirSync(target)).toEqual([]);
+});
+
+test("rename reports a failing sidecar per file, keeps going and exits 1", async (): Promise<void> => {
+  const dir = makeTempDir();
+  const target = path.join(dir, "target");
+  const show = path.join(dir, "show");
+  fs.mkdirSync(target);
+  fs.mkdirSync(show);
+  const first = path.join(show, "a.mkv");
+  fs.writeFileSync(first, "first");
+  fs.writeFileSync(path.join(show, "a.nfo"), "a");
+  fs.writeFileSync(path.join(show, "a.en.srt"), "a");
+
+  const config = writeRenameConfig(
+    target,
+    "{anime_name_romaji}/{anime_name_romaji}.{filetype}",
+  );
+  const real = fs.renameSync;
+  let spy: ReturnType<typeof spyOn> | undefined;
+  const { output, code } = await renameWithSidecars(
+    show,
+    config,
+    [first],
+    {},
+    () => {
+      // the subtitle of the first episode is refused
+      spy = spyOn(fs, "renameSync").mockImplementation((from, to): void => {
+        if (!String(from).endsWith("a.en.srt")) return real(from, to);
+        throw new Error("EACCES: permission denied");
+      });
+    },
+  ).finally(() => spy?.mockRestore());
+
+  expect(code).toBe(1);
+  expect(output).toContain("a.en.srt: Renaming ...");
+  expect(output).toContain("EACCES");
+  expect(output).not.toContain("not processed");
+  expect(fs.existsSync(path.join(show, "a.en.srt"))).toBe(true);
+  expect(fs.existsSync(path.join(show, "a.nfo"))).toBe(false);
+  // the other sidecar and the episode are still placed
+  expect(output).toContain("a.nfo: Moved to");
+  expect(fs.existsSync(path.join(target, "Test Anime", "Test Anime.mkv"))).toBe(
+    true,
+  );
+});

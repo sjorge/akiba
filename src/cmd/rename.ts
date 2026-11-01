@@ -214,6 +214,24 @@ export async function renameAction(
         }
 
         log(`${path.basename(episodeFile)}: ${message}`, "done");
+
+        // the sidecars follow the episode, a failure there leaves the episode
+        // renamed and only flags the exit code
+        for (const sidecar of renamerResult.sidecars ?? []) {
+          const sidecarName = path.basename(sidecar.source);
+          if (sidecar.error !== undefined) {
+            log(`${sidecarName}: Renaming ...`, "error");
+            log(sidecar.error, "error");
+            process.exitCode = 1;
+          } else {
+            const verb = sidecar.action == "copy" ? "Copied" : "Moved";
+            const linked = sidecar.action == "symlink" ? " and symlinked" : "";
+            log(
+              `${sidecarName}: ${verb} to ${sidecar.destination}${linked}!`,
+              "done",
+            );
+          }
+        }
       } else {
         log(`${path.basename(episodeFile)}: Renaming ...`, "error");
       }
