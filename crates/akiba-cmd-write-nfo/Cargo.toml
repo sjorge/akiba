@@ -1,0 +1,21 @@
+[package]
+name = "akiba-cmd-write-nfo"
+description = "The akiba write-nfo command: write tvshow.nfo, the poster and episode NFOs"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+akiba-core = { path = "../akiba-core" }
+anidb-http = { path = "../anidb-http" }
+clap.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+akiba-test-support = { path = "../akiba-test-support" }
+
+[lints]
+workspace = true
