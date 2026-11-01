@@ -15,6 +15,10 @@ import type { LocalMapping } from "lib/anime/idmap/local";
 import { readConfig } from "lib/config";
 import { writeFileAtomic } from "lib/fs";
 import { banner, log } from "lib/logger";
+import { parseWholeInteger } from "lib/number";
+
+// the stored id that records "no entry there, do not look it up again"
+const BLACKLIST_ID = -1;
 
 /*
  * Entrypoint `idmap` action for commander-js
@@ -64,7 +68,7 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
       }
     } else {
       if (mapping[aid] === undefined) mapping[aid] = {};
-      mapping[aid].anilist = parseInt(`${opts.anilistid}`, 10);
+      mapping[aid].anilist = opts.anilistid as number;
     }
   }
   if (opts.tmdbid !== undefined) {
@@ -76,7 +80,7 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
       }
     } else {
       if (mapping[aid] === undefined) mapping[aid] = {};
-      mapping[aid].tmdb = parseInt(`${opts.tmdbid}`, 10);
+      mapping[aid].tmdb = opts.tmdbid as number;
       mapping[aid].tmdbSeason = 1;
     }
   }
@@ -111,6 +115,28 @@ async function idmapAction(aid: number, opts: OptionValues): Promise<void> {
 }
 
 /*
+ * Argument parser for an anidb id
+ */
+function parseId(value: string): number {
+  const id = parseWholeInteger(value);
+  if (id === undefined) throw new InvalidArgumentError("Expecting a number.");
+  return id;
+}
+
+/*
+ * Argument parser for a provider id, which may also be blacklisted with
+ * `blacklist` or -1. Other negative numbers are rejected.
+ */
+function parseProviderId(value: string): number {
+  if (value === "blacklist") return BLACKLIST_ID;
+  const id = parseWholeInteger(value);
+  if (id === undefined || id < BLACKLIST_ID) {
+    throw new InvalidArgumentError("Expecting a number.");
+  }
+  return id;
+}
+
+/*
  * Setup `idmap` command for commander-js
  */
 export function addIdmapCommand(program: Command): void {
@@ -119,34 +145,29 @@ export function addIdmapCommand(program: Command): void {
     .description("manage local ID mapping entries")
     .addArgument(
       new Argument("<aid>", "anidb id to manage mapping for").argParser(
-        (value: string) => {
-          const id = parseInt(value, 10);
-          if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-          return id;
-        },
+        parseId,
       ),
     )
     .addOption(
-      new Option("--anilistid <id>", "add maping to this anilist id").argParser(
-        (value: string) => {
-          const id = parseInt(value, 10);
-          if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-          return id;
-        },
-      ),
+      new Option(
+        "--anilistid <id>",
+        "add mapping to this anilist id, or `blacklist` (-1) to record that this anime has no anilist entry, so it is not looked up again",
+      ).argParser(parseProviderId),
     )
-    .option("--no-anilistid", "remove mapping to anilist id")
+    .option(
+      "--no-anilistid",
+      "remove the anilist mapping, so it is looked up again (unlike blacklisting)",
+    )
     .addOption(
       new Option(
         "--tmdbid <id>",
-        "add maping to this themoviedb sereis id (movie ids are not supported)",
-      ).argParser((value: string) => {
-        const id = parseInt(value, 10);
-        if (isNaN(id)) throw new InvalidArgumentError("Expecting a number.");
-        return id;
-      }),
+        "add mapping to this themoviedb series id (movie ids are not supported), or `blacklist` (-1) to record that this anime has no themoviedb series, so it is not looked up again",
+      ).argParser(parseProviderId),
     )
-    .option("--no-tmdbid", "remove mapping to themoviedb series id")
+    .option(
+      "--no-tmdbid",
+      "remove the themoviedb mapping, so it is looked up again (unlike blacklisting)",
+    )
     .addOption(new Option("--no-show", "show mapping for aid").default(true))
     .action(idmapAction);
 }

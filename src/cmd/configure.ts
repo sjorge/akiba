@@ -18,6 +18,7 @@ import {
   AnimeStringFormatException,
 } from "lib/anime/formatter";
 import { banner, log } from "lib/logger";
+import { parseWholeInteger } from "lib/number";
 
 /*
  * Entrypoint `configure` action for commander-js
@@ -29,14 +30,14 @@ async function configureAction(opts: OptionValues): Promise<void> {
     const httpClientVersion = (opts.anidbHttpClient as string).split("/");
     if (httpClientVersion.length == 1) httpClientVersion.push("1");
     config.anidb.http_client.name = httpClientVersion[0];
-    config.anidb.http_client.version = parseInt(httpClientVersion[1], 10);
+    config.anidb.http_client.version = parseWholeInteger(httpClientVersion[1]);
   }
 
   if (opts.anidbUdpClient) {
     const udpClientVersion = (opts.anidbUdpClient as string).split("/");
     if (udpClientVersion.length == 1) udpClientVersion.push("1");
     config.anidb.udp_client.name = udpClientVersion[0];
-    config.anidb.udp_client.version = parseInt(udpClientVersion[1], 10);
+    config.anidb.udp_client.version = parseWholeInteger(udpClientVersion[1]);
   }
 
   if (opts.anidbAuthUsername)
@@ -96,7 +97,9 @@ export function addConfigureCommand(program: Command): void {
     const clientVersion = value.split("/");
     if (clientVersion.length == 1) clientVersion.push("1");
 
-    if (isNaN(parseInt(clientVersion[1], 10)))
+    // the version is stored as an unsigned 32-bit number
+    const version = parseWholeInteger(clientVersion[1]);
+    if (version === undefined || version < 0 || version > 0xffffffff)
       throw new InvalidArgumentError("Expecting a number for version.");
 
     return value;

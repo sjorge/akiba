@@ -56,8 +56,9 @@ akiba idmap 18700 --tmdbid 259140
 # Unmap the tmdb tv series for Ranma1/2 (2024)
 akiba idmap 18700 --no-tmdbid --no-show
 
-# Blacklist a potential incorrect mapping from the tmdb idmap provider
-akiba idmap 18700 --tmdbid -1
+# Blacklist the tmdb lookup for this anime, so it is not looked up again
+# (`--tmdbid -1` is the same; unlike --no-tmdbid, which looks it up again)
+akiba idmap 18700 --tmdbid blacklist
 
 # Show additional flags
 akiba idmap --help
