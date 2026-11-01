@@ -1,0 +1,20 @@
+[package]
+name = "akiba-cmd-idmap"
+description = "The akiba idmap command: manage local ID mapping entries"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+akiba-core = { path = "../akiba-core" }
+clap.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+akiba-test-support = { path = "../akiba-test-support" }
+
+[lints]
+workspace = true
