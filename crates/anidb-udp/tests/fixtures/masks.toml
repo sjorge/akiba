@@ -1,0 +1,122 @@
+# Reference masks computed independently of the Rust tables.
+# `single`: the 9 byte mask of each field alone. `order`: the reply order of
+# all fields. The fmask is the first 5 bytes, the amask the last 4.
+
+full_fmask = "7ffafff9fe"
+full_amask = "fefcfcc1"
+order = [
+  "aid",
+  "eid",
+  "gid",
+  "mylist_id",
+  "other_episodes",
+  "is_deprecated",
+  "state",
+  "size",
+  "ed2k",
+  "md5",
+  "sha1",
+  "crc32",
+  "video_color_depth",
+  "quality",
+  "source",
+  "audio_codecs",
+  "audio_bitrates",
+  "video_codec",
+  "video_bitrate",
+  "video_resolution",
+  "file_extension",
+  "dub_language",
+  "sub_language",
+  "length_seconds",
+  "description",
+  "aired_date",
+  "anidb_filename",
+  "mylist_state",
+  "mylist_filestate",
+  "mylist_viewed",
+  "mylist_viewdate",
+  "mylist_storage",
+  "mylist_source",
+  "mylist_other",
+  "anime_total_episodes",
+  "highest_episode",
+  "year",
+  "type",
+  "related_aid_list",
+  "related_aid_type",
+  "category_list",
+  "romanji_name",
+  "kanji_name",
+  "english_name",
+  "other_name_list",
+  "short_name_list",
+  "synonym_list",
+  "epno",
+  "ep_name",
+  "ep_romanji_name",
+  "ep_kanji_name",
+  "ep_rating",
+  "ep_vote_count",
+  "group_name",
+  "group_short_name",
+  "aid_record_updated",
+]
+
+[single]
+aid = "400000000000000000"
+eid = "200000000000000000"
+gid = "100000000000000000"
+mylist_id = "080000000000000000"
+other_episodes = "040000000000000000"
+is_deprecated = "020000000000000000"
+state = "010000000000000000"
+size = "008000000000000000"
+ed2k = "004000000000000000"
+md5 = "002000000000000000"
+sha1 = "001000000000000000"
+crc32 = "000800000000000000"
+video_color_depth = "000200000000000000"
+quality = "000080000000000000"
+source = "000040000000000000"
+audio_codecs = "000020000000000000"
+audio_bitrates = "000010000000000000"
+video_codec = "000008000000000000"
+video_bitrate = "000004000000000000"
+video_resolution = "000002000000000000"
+file_extension = "000001000000000000"
+dub_language = "000000800000000000"
+sub_language = "000000400000000000"
+length_seconds = "000000200000000000"
+description = "000000100000000000"
+aired_date = "000000080000000000"
+anidb_filename = "000000010000000000"
+mylist_state = "000000008000000000"
+mylist_filestate = "000000004000000000"
+mylist_viewed = "000000002000000000"
+mylist_viewdate = "000000001000000000"
+mylist_storage = "000000000800000000"
+mylist_source = "000000000400000000"
+mylist_other = "000000000200000000"
+anime_total_episodes = "000000000080000000"
+highest_episode = "000000000040000000"
+year = "000000000020000000"
+type = "000000000010000000"
+related_aid_list = "000000000008000000"
+related_aid_type = "000000000004000000"
+category_list = "000000000002000000"
+romanji_name = "000000000000800000"
+kanji_name = "000000000000400000"
+english_name = "000000000000200000"
+other_name_list = "000000000000100000"
+short_name_list = "000000000000080000"
+synonym_list = "000000000000040000"
+epno = "000000000000008000"
+ep_name = "000000000000004000"
+ep_romanji_name = "000000000000002000"
+ep_kanji_name = "000000000000001000"
+ep_rating = "000000000000000800"
+ep_vote_count = "000000000000000400"
+group_name = "000000000000000080"
+group_short_name = "000000000000000040"
+aid_record_updated = "000000000000000001"
