@@ -5,7 +5,13 @@
 import type { MaskDefinition, MaskResult } from "lib/anidb/parsers/masked";
 import type { FileResult } from "lib/anidb/types";
 
-import { ListField, NumBoolean } from "lib/anidb/parsers/fields";
+import {
+  Int,
+  ListField,
+  NumBoolean,
+  StringWithLineBreaks,
+  badData,
+} from "lib/anidb/parsers/fields";
 import { MaskedParser } from "lib/anidb/parsers/masked";
 
 const amaskDef = {
@@ -19,15 +25,15 @@ const amaskDef = {
   1 2 int2 IsDeprecated
   0 1 int2 state
   */
-  aid: [0, 64, Number],
-  eid: [0, 32, Number],
-  gid: [0, 16, Number],
-  mylist_id: [0, 8, Number],
+  aid: [0, 64, Int],
+  eid: [0, 32, Int],
+  gid: [0, 16, Int],
+  mylist_id: [0, 8, Int],
   // NOTE: the layout of other episodes (episode id and percentage) is not
   // specified, so it stays a raw string
   other_episodes: [0, 4, String],
   is_deprecated: [0, 2, NumBoolean],
-  state: [0, 1, Number],
+  state: [0, 1, Int],
   /*
   7 128 int8 size
   6 64 str ed2k
@@ -38,7 +44,7 @@ const amaskDef = {
   1 2 video colour depth
   0 1 reserved
   */
-  size: [1, 128, Number],
+  size: [1, 128, Int],
   ed2k: [1, 64, String],
   md5: [1, 32, String],
   sha1: [1, 16, String],
@@ -54,13 +60,13 @@ const amaskDef = {
   1 2 str video resolution
   0 1 str file type (extension)
   */
-  quality: [2, 128, String],
-  source: [2, 64, String],
-  audio_codecs: [2, 32, ListField(String, undefined, true)],
-  audio_bitrates: [2, 16, ListField(Number, undefined, true)],
-  video_codec: [2, 8, String],
-  video_bitrate: [2, 4, Number],
-  video_resolution: [2, 2, String],
+  quality: [2, 128, StringWithLineBreaks],
+  source: [2, 64, StringWithLineBreaks],
+  audio_codecs: [2, 32, ListField(StringWithLineBreaks, undefined, true)],
+  audio_bitrates: [2, 16, ListField(Int, undefined, true)],
+  video_codec: [2, 8, StringWithLineBreaks],
+  video_bitrate: [2, 4, Int],
+  video_resolution: [2, 2, StringWithLineBreaks],
   file_extension: [2, 1, String],
   /*
   7 128 str dub language
@@ -72,12 +78,12 @@ const amaskDef = {
   1 2 unused
   0 1 str anidb file name
   */
-  dub_language: [3, 128, ListField(String, undefined, true)],
-  sub_language: [3, 64, ListField(String, undefined, true)],
-  length_seconds: [3, 32, Number],
-  description: [3, 16, String],
-  aired_date: [3, 8, Number],
-  anidb_filename: [3, 1, String],
+  dub_language: [3, 128, ListField(StringWithLineBreaks, undefined, true)],
+  sub_language: [3, 64, ListField(StringWithLineBreaks, undefined, true)],
+  length_seconds: [3, 32, Int],
+  description: [3, 16, StringWithLineBreaks],
+  aired_date: [3, 8, Int],
+  anidb_filename: [3, 1, StringWithLineBreaks],
   /*
   7 128 int4 mylist state
   6 64 int4 mylist filestate
@@ -88,13 +94,13 @@ const amaskDef = {
   1 2 str mylist other
   0 1 unused
   */
-  mylist_state: [4, 128, Number],
-  mylist_filestate: [4, 64, Number],
-  mylist_viewed: [4, 32, Number],
-  mylist_viewdate: [4, 16, Number],
-  mylist_storage: [4, 8, String],
-  mylist_source: [4, 4, String],
-  mylist_other: [4, 2, String],
+  mylist_state: [4, 128, Int],
+  mylist_filestate: [4, 64, Int],
+  mylist_viewed: [4, 32, Int],
+  mylist_viewdate: [4, 16, Int],
+  mylist_storage: [4, 8, StringWithLineBreaks],
+  mylist_source: [4, 4, StringWithLineBreaks],
+  mylist_other: [4, 2, StringWithLineBreaks],
   /*
   7 128 int4 anime total episodes
   6 64 int4 highest episode number
@@ -105,13 +111,13 @@ const amaskDef = {
   1 2 str category list
   0 1 reserved
   */
-  anime_total_episodes: [5, 128, Number],
-  highest_episode: [5, 64, Number],
+  anime_total_episodes: [5, 128, Int],
+  highest_episode: [5, 64, Int],
   year: [5, 32, String],
   type: [5, 16, String],
-  related_aid_list: [5, 8, ListField(Number, undefined, true)],
-  related_aid_type: [5, 4, ListField(Number, undefined, true)],
-  category_list: [5, 2, ListField(String, ",", true)],
+  related_aid_list: [5, 8, ListField(Int, undefined, true)],
+  related_aid_type: [5, 4, ListField(Int, undefined, true)],
+  category_list: [5, 2, ListField(StringWithLineBreaks, ",", true)],
   /*
   7 128 str romaji name
   6 64 str kanji name
@@ -122,12 +128,12 @@ const amaskDef = {
   1 2 retired
   0 1 retired
   */
-  romanji_name: [6, 128, String],
-  kanji_name: [6, 64, String],
-  english_name: [6, 32, String],
-  other_name_list: [6, 16, ListField(String, undefined, true)],
-  short_name_list: [6, 8, ListField(String, undefined, true)],
-  synonym_list: [6, 4, ListField(String, undefined, true)],
+  romanji_name: [6, 128, StringWithLineBreaks],
+  kanji_name: [6, 64, StringWithLineBreaks],
+  english_name: [6, 32, StringWithLineBreaks],
+  other_name_list: [6, 16, ListField(StringWithLineBreaks, undefined, true)],
+  short_name_list: [6, 8, ListField(StringWithLineBreaks, undefined, true)],
+  synonym_list: [6, 4, ListField(StringWithLineBreaks, undefined, true)],
   /*
   7 128 str epno
   6 64 str ep name
@@ -138,12 +144,12 @@ const amaskDef = {
   1 2 unused
   0 1 unused
   */
-  epno: [7, 128, String],
-  ep_name: [7, 64, String],
-  ep_romanji_name: [7, 32, String],
-  ep_kanji_name: [7, 16, String],
-  ep_rating: [7, 8, Number],
-  ep_vote_count: [7, 4, Number],
+  epno: [7, 128, StringWithLineBreaks],
+  ep_name: [7, 64, StringWithLineBreaks],
+  ep_romanji_name: [7, 32, StringWithLineBreaks],
+  ep_kanji_name: [7, 16, StringWithLineBreaks],
+  ep_rating: [7, 8, Int],
+  ep_vote_count: [7, 4, Int],
   /*
   7 128 str group name
   6 64 str group short name
@@ -154,9 +160,9 @@ const amaskDef = {
   1 2 unused
   0 1 int4 date aid record updated
   */
-  group_name: [8, 128, String],
-  group_short_name: [8, 64, String],
-  aid_record_updated: [8, 1, Number],
+  group_name: [8, 128, StringWithLineBreaks],
+  group_short_name: [8, 64, StringWithLineBreaks],
+  aid_record_updated: [8, 1, Int],
 } as const satisfies MaskDefinition;
 
 export type FileParseResult = Partial<MaskResult<typeof amaskDef>> & {
@@ -180,10 +186,10 @@ export class FileParser extends MaskedParser<typeof amaskDef> {
       // NOTE: several matching files (322) are handled by the client
       const matchedData = data.match(/([0-9]+)\|((:?.|\n)*)/);
       if (!matchedData) {
-        throw new Error("Bad data: " + data);
+        throw badData(`bad file reply ${JSON.stringify(data)}`);
       }
       const respObj = origParseData(matchedData[2]!);
-      return { ...respObj, fid: Number(matchedData[1]) };
+      return { ...respObj, fid: Int(matchedData[1]!) };
     };
   }
 

@@ -3,7 +3,53 @@
  */
 import type { DateflagsType } from "lib/anidb/types";
 
+import { RESPONSE_CODE } from "lib/anidb/constants";
+import { AnidbError } from "lib/anidb/error";
+
 export type FieldParser<T> = (value: string) => T;
+
+/*
+ * The error for a reply that cannot be read: too few fields, a value of the
+ * wrong type, an unexpected code.
+ */
+export function badData(message: string): AnidbError {
+  return new AnidbError(RESPONSE_CODE.UNKNOWN_API_ERROR, message);
+}
+
+/*
+ * An integer field. AniDB sends an empty field for a number that is not set,
+ * that is 0. Anything else that is not a whole number is bad data.
+ */
+export function Int(value: string | number): number {
+  const text = String(value).trim();
+  if (text === "") return 0;
+  if (!/^[+-]?\d+$/.test(text)) {
+    throw badData(`bad number ${JSON.stringify(String(value))}`);
+  }
+  return Number(text);
+}
+
+/*
+ * Runs a field parser and adds the name of the field to the message of a bad
+ * value.
+ */
+export function parseField<T>(
+  name: string,
+  parser: FieldParser<T>,
+  raw: string,
+): T {
+  try {
+    return parser(raw);
+  } catch (_e: unknown) {
+    if (
+      _e instanceof AnidbError &&
+      _e.code === RESPONSE_CODE.UNKNOWN_API_ERROR
+    ) {
+      throw badData(`${_e.message} in field ${name}`);
+    }
+    throw _e;
+  }
+}
 
 /*
  * Parses a list. AniDB separates the items of a list with a single quote, a few
@@ -41,7 +87,8 @@ const VALID_DATE_FLAGS: readonly DateflagsType[] = [
  * unknown year, bit 6 end date with unknown year.
  */
 export function Dateflags(flags: number | string): DateflagsType[] {
-  return VALID_DATE_FLAGS.filter((_v, i) => !!((Number(flags) >>> i) & 1));
+  const bits = Int(flags);
+  return VALID_DATE_FLAGS.filter((_v, i) => !!((bits >>> i) & 1));
 }
 
 /*
@@ -57,14 +104,14 @@ export function MapField(
     const fields = String(value).split(separator || "|");
     // additional trailing fields are ignored, the spec says new ones get added
     if (fields.length < definition.size) {
-      throw new Error(
+      throw badData(
         `reply has ${fields.length} fields, ${definition.size} expected`,
       );
     }
     const parsed: Record<string, unknown> = {};
     let idx = 0;
     for (const [fieldName, fieldParser] of definition) {
-      parsed[fieldName] = fieldParser(fields[idx]!);
+      parsed[fieldName] = parseField(fieldName, fieldParser, fields[idx]!);
       idx++;
     }
     return parsed;
@@ -87,13 +134,13 @@ export function MapFieldStatic<V extends Record<string, FieldParser<unknown>>>(
     const entries = Object.entries(definition);
     // additional trailing fields are ignored, the spec says new ones get added
     if (fields.length < entries.length) {
-      throw new Error(
+      throw badData(
         `reply has ${fields.length} fields, ${entries.length} expected`,
       );
     }
     const parsed: Record<string, unknown> = {};
     entries.forEach(([fieldName, fieldParser], idx) => {
-      parsed[fieldName] = fieldParser(fields[idx]!);
+      parsed[fieldName] = parseField(fieldName, fieldParser, fields[idx]!);
     });
     return parsed as { [K in keyof V]: ReturnType<V[K]> };
   };

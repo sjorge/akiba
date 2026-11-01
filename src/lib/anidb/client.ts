@@ -66,6 +66,8 @@ import {
   UPDATED_PARSER,
   USER_PARSER,
   VOTE_PARSER,
+  parseMylistByAnime,
+  parseMylistEdited,
 } from "lib/anidb/responses";
 import { UdpTransport, createKey } from "lib/anidb/udp";
 import { nameOrId, reverseObj } from "lib/anidb/util";
@@ -736,7 +738,7 @@ export class AnidbUDPClient {
     anime: number | string,
     group?: number | string,
     epno?: number,
-  ): Promise<MylistByAnimeResult | undefined> {
+  ): Promise<MylistByAnimeResult> {
     let request: Params = {};
     if (epno) request.epno = epno;
     request = nameOrId(anime, "aid", "aname", request);
@@ -747,45 +749,7 @@ export class AnidbUDPClient {
       RESPONSE_CODE.MULTIPLE_MYLIST_ENTRIES,
     ]);
 
-    if (code === RESPONSE_CODE.MYLIST) {
-      return { single: MYLIST_PARSER.parseData(data) };
-    }
-    if (code === RESPONSE_CODE.MULTIPLE_MYLIST_ENTRIES) {
-      const staticFields = [
-        "anime_title",
-        "episodes",
-        "eps_unknown",
-        "eps_hdd",
-        "eps_cd",
-        "eps_deleted",
-        "eps_watched",
-      ] as const;
-      const split = data.split("|");
-      const head = split.slice(0, staticFields.length);
-      if (head.length !== staticFields.length) {
-        throw new Error(
-          `reply has ${head.length} fields, ${staticFields.length} expected`,
-        );
-      }
-      const groupsPart = split.slice(staticFields.length);
-      const groups: { group: string; episodes: string }[] = [];
-      for (let i = 0; i < groupsPart.length; i += 2) {
-        groups.push({ group: groupsPart[i]!, episodes: groupsPart[i + 1]! });
-      }
-      return {
-        multi: {
-          anime_title: head[0]!,
-          episodes: Number(head[1]),
-          eps_unknown: head[2]!,
-          eps_hdd: head[3]!,
-          eps_cd: head[4]!,
-          eps_deleted: head[5]!,
-          eps_watched: head[6]!,
-          groups,
-        },
-      };
-    }
-    return undefined;
+    return parseMylistByAnime(code, data);
   }
 
   /*
@@ -840,7 +804,10 @@ export class AnidbUDPClient {
       case RESPONSE_CODE.MYLIST_ENTRY_ADDED:
         return { code: "MYLIST_ENTRY_ADDED", lid: Number(data) };
       case RESPONSE_CODE.MYLIST_ENTRY_EDITED:
-        return { code: "MYLIST_ENTRY_EDITED", nr_edited: Number(data) };
+        return {
+          code: "MYLIST_ENTRY_EDITED",
+          nr_edited: parseMylistEdited(data),
+        };
       case RESPONSE_CODE.FILE_ALREADY_IN_MYLIST:
         throw new AnidbError(
           RESPONSE_CODE.FILE_ALREADY_IN_MYLIST,

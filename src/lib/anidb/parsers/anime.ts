@@ -4,7 +4,13 @@
 import type { MaskDefinition, MaskResult } from "lib/anidb/parsers/masked";
 import type { AnimeResult } from "lib/anidb/types";
 
-import { Dateflags, ListField, NumBoolean } from "lib/anidb/parsers/fields";
+import {
+  Dateflags,
+  Int,
+  ListField,
+  NumBoolean,
+  StringWithLineBreaks,
+} from "lib/anidb/parsers/fields";
 import { MaskedParser } from "lib/anidb/parsers/masked";
 
 const fmaskDef = {
@@ -18,12 +24,12 @@ const fmaskDef = {
   1 2 retired
   0 1 retired
   */
-  aid: [0, 128, Number],
+  aid: [0, 128, Int],
   dateflags: [0, 64, Dateflags],
   year: [0, 32, String],
   type: [0, 16, String],
-  related_anime: [0, 8, ListField(Number, undefined, true)],
-  related_types: [0, 4, ListField(Number, undefined, true)],
+  related_anime: [0, 8, ListField(Int, undefined, true)],
+  related_types: [0, 4, ListField(Int, undefined, true)],
   /*
   7 128 str romaji name
   6 64 str kanji name
@@ -34,12 +40,12 @@ const fmaskDef = {
   1 2 retired
   0 1 retired
   */
-  romanji_name: [1, 128, String],
-  kanji_name: [1, 64, String],
-  english_name: [1, 32, String],
-  other_name_list: [1, 16, ListField(String, undefined, true)],
-  short_name_list: [1, 8, ListField(String, undefined, true)],
-  synonym_list: [1, 4, ListField(String, undefined, true)],
+  romanji_name: [1, 128, StringWithLineBreaks],
+  kanji_name: [1, 64, StringWithLineBreaks],
+  english_name: [1, 32, StringWithLineBreaks],
+  other_name_list: [1, 16, ListField(StringWithLineBreaks, undefined, true)],
+  short_name_list: [1, 8, ListField(StringWithLineBreaks, undefined, true)],
+  synonym_list: [1, 4, ListField(StringWithLineBreaks, undefined, true)],
   /*
   7 128 int4 episodes
   6 64 int4 highest episode number
@@ -50,11 +56,11 @@ const fmaskDef = {
   1 2 str picname
   0 1 retired
   */
-  episodes: [2, 128, Number],
-  highest_ep_number: [2, 64, Number],
-  special_ep_count: [2, 32, Number],
-  air_date: [2, 16, Number],
-  end_date: [2, 8, Number],
+  episodes: [2, 128, Int],
+  highest_ep_number: [2, 64, Int],
+  special_ep_count: [2, 32, Int],
+  air_date: [2, 16, Int],
+  end_date: [2, 8, Int],
   url: [2, 4, String],
   picname: [2, 2, String],
   /*
@@ -67,13 +73,13 @@ const fmaskDef = {
   1 2 str award list
   0 1 bool is 18+ restricted
   */
-  rating: [3, 128, Number],
-  vote_count: [3, 64, Number],
-  temp_rating: [3, 32, Number],
-  temp_vote_count: [3, 16, Number],
-  average_review_rating: [3, 8, Number],
-  review_count: [3, 4, Number],
-  award_list: [3, 2, ListField(String, undefined, true)],
+  rating: [3, 128, Int],
+  vote_count: [3, 64, Int],
+  temp_rating: [3, 32, Int],
+  temp_vote_count: [3, 16, Int],
+  average_review_rating: [3, 8, Int],
+  review_count: [3, 4, Int],
+  award_list: [3, 2, ListField(StringWithLineBreaks, undefined, true)],
   is_18_restricted: [3, 1, NumBoolean],
   /*
   7 128 retired
@@ -85,13 +91,13 @@ const fmaskDef = {
   1 2 int tag weight list
   0 1 int date record updated
   */
-  ann_id: [4, 64, Number],
-  allcinema_id: [4, 32, Number],
+  ann_id: [4, 64, Int],
+  allcinema_id: [4, 32, Int],
   animenfo_id: [4, 16, String],
-  tag_name_list: [4, 8, ListField(String, ",", true)],
-  tag_id_list: [4, 4, ListField(Number, ",", true)],
-  tag_weight_list: [4, 2, ListField(Number, ",", true)],
-  date_record_updated: [4, 1, Number],
+  tag_name_list: [4, 8, ListField(StringWithLineBreaks, ",", true)],
+  tag_id_list: [4, 4, ListField(Int, ",", true)],
+  tag_weight_list: [4, 2, ListField(Int, ",", true)],
+  date_record_updated: [4, 1, Int],
   /*
   7 128 int character id list
   6 64 retired
@@ -102,7 +108,7 @@ const fmaskDef = {
   1 2 unused
   0 1 unused
   */
-  character_id_list: [5, 128, ListField(Number, ",", true)],
+  character_id_list: [5, 128, ListField(Int, ",", true)],
   /*
   7 128 int4 specials count
   6 64 int4 credits count
@@ -113,11 +119,11 @@ const fmaskDef = {
   1 2 unused
   0 1 unused
   */
-  specials_count: [6, 128, Number],
-  credits_count: [6, 64, Number],
-  other_count: [6, 32, Number],
-  trailer_count: [6, 16, Number],
-  parody_count: [6, 8, Number],
+  specials_count: [6, 128, Int],
+  credits_count: [6, 64, Int],
+  other_count: [6, 32, Int],
+  trailer_count: [6, 16, Int],
+  parody_count: [6, 8, Int],
 } as const satisfies MaskDefinition;
 
 /*

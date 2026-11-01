@@ -387,11 +387,6 @@ export type RandomResult = {
   readonly short_name_list: string[];
   readonly synonym_list: string[];
   readonly categories: string[];
-  readonly air_date: number;
-  readonly end_date: number;
-  readonly dateflags: DateflagsType[];
-  readonly is_18_restricted: boolean;
-  readonly picname: string;
 };
 
 export type UserIdResult = {

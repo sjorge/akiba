@@ -4,11 +4,14 @@
 export {
   CodedField,
   Dateflags,
+  Int,
   ListField,
   MapField,
   MapFieldStatic,
   NumBoolean,
   StringWithLineBreaks,
+  badData,
+  parseField,
 } from "lib/anidb/parsers/fields";
 export type { FieldParser } from "lib/anidb/parsers/fields";
 export { MaskedParser } from "lib/anidb/parsers/masked";
