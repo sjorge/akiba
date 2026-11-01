@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tvshow>
+  <title>Test 'Anime'</title>
+  <originaltitle>テスト</originaltitle>
+  <uniqueid type="AniDB" default="true">100</uniqueid>
+  <uniqueid type="AniList" default="false">5</uniqueid>
+  <uniqueid type="tmdb" default="false">6</uniqueid>
+  <premiered>2020-01-01</premiered>
+  <mpaa>G</mpaa>
+</tvshow>

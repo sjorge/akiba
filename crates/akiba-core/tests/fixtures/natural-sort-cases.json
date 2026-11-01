@@ -1,0 +1,110 @@
+[
+  {
+    "input": [
+      "Show - 10 - X.mkv",
+      "Show - 2 - X.mkv",
+      "Show - 01 - X.mkv",
+      "Show - 100 - X.mkv",
+      "Show - 9 - X.mkv"
+    ],
+    "sorted": [
+      "Show - 01 - X.mkv",
+      "Show - 2 - X.mkv",
+      "Show - 9 - X.mkv",
+      "Show - 10 - X.mkv",
+      "Show - 100 - X.mkv"
+    ]
+  },
+  {
+    "input": [
+      "Show - S1 - Special.mkv",
+      "Show - OP1 - Opening.mkv",
+      "Show - 01 - A.mkv",
+      "Show - ED1 - Ending.mkv",
+      "Show - C1 - Credits.mkv",
+      "Show - S10 - Special Ten.mkv",
+      "Show - S2 - Special Two.mkv",
+      "Show - 12 - B.mkv"
+    ],
+    "sorted": [
+      "Show - 01 - A.mkv",
+      "Show - 12 - B.mkv",
+      "Show - C1 - Credits.mkv",
+      "Show - ED1 - Ending.mkv",
+      "Show - OP1 - Opening.mkv",
+      "Show - S1 - Special.mkv",
+      "Show - S2 - Special Two.mkv",
+      "Show - S10 - Special Ten.mkv"
+    ]
+  },
+  {
+    "input": [
+      "show - 01 - a.mkv",
+      "Show - 01 - B.mkv",
+      "SHOW - 01 - c.mkv",
+      "show - 02 - a.mkv",
+      "Show - 1 - z.mkv",
+      "show - 001 - Z.mkv"
+    ],
+    "sorted": [
+      "SHOW - 01 - c.mkv",
+      "Show - 01 - B.mkv",
+      "Show - 1 - z.mkv",
+      "show - 001 - Z.mkv",
+      "show - 01 - a.mkv",
+      "show - 02 - a.mkv"
+    ]
+  },
+  {
+    "input": [
+      "Show - 01-02 - Pilot.mkv",
+      "Show - 03 - Next.mkv",
+      "Show - 01 - Pilot.mkv",
+      "Show - 1.5 - Recap.mkv",
+      "Show - 10-12 - Finale.mkv"
+    ],
+    "sorted": [
+      "Show - 01 - Pilot.mkv",
+      "Show - 01-02 - Pilot.mkv",
+      "Show - 03 - Next.mkv",
+      "Show - 1.5 - Recap.mkv",
+      "Show - 10-12 - Finale.mkv"
+    ]
+  },
+  {
+    "input": [
+      "[Group] Show - 01 [1080p] [ABCDEF12].mkv",
+      "[Group] Show - 011 [1080p].mkv",
+      "[Group] Show - 2 [720p].mkv",
+      "[Group] Show 1st Season - 00 (Special).mkv"
+    ],
+    "sorted": [
+      "[Group] Show - 01 [1080p] [ABCDEF12].mkv",
+      "[Group] Show - 011 [1080p].mkv",
+      "[Group] Show - 2 [720p].mkv",
+      "[Group] Show 1st Season - 00 (Special).mkv"
+    ]
+  },
+  {
+    "input": [
+      "",
+      "a",
+      "B",
+      "b",
+      "1",
+      "01",
+      "a1",
+      "a01"
+    ],
+    "sorted": [
+      "",
+      "01",
+      "1",
+      "B",
+      "a",
+      "a01",
+      "a1",
+      "b"
+    ]
+  }
+]

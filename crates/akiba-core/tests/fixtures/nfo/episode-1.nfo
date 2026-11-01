@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<episodedetails>
+  <title>First 'Ep'</title>
+  <uniqueid type="AniDB" default="true">1001</uniqueid>
+  <originaltitle>第一話</originaltitle>
+  <premiered>2020-01-08</premiered>
+  <season>1</season>
+  <episode>1</episode>
+</episodedetails>

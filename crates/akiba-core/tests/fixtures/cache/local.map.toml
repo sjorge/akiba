@@ -1,0 +1,11 @@
+[100]
+anilist = 5
+
+[200]
+anilist = -1
+tmdb = -1
+
+[10914]
+anilist = 98
+tmdb = 1_234
+tmdbSeason = 1

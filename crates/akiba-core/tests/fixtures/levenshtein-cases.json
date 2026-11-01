@@ -1,0 +1,302 @@
+[
+  {
+    "a": "Shingeki no Kyojin",
+    "b": "Shingeki no Kyojin",
+    "distance": 0,
+    "distance_plain": 0
+  },
+  {
+    "a": "shingeki no kyojin",
+    "b": "Shingeki no Kyojin",
+    "distance": 0,
+    "distance_plain": 2
+  },
+  {
+    "a": "Shingeki no Kyojin",
+    "b": "Shingeki no Kyojin Season 2",
+    "distance": 9,
+    "distance_plain": 9
+  },
+  {
+    "a": "Shingeki no Kyojin",
+    "b": "Shingeki no Kyojin 2nd Season",
+    "distance": 11,
+    "distance_plain": 11
+  },
+  {
+    "a": "Sword Art Online",
+    "b": "Sword Art Online II",
+    "distance": 3,
+    "distance_plain": 3
+  },
+  {
+    "a": "Sword Art Online",
+    "b": "Sword Art Online: Alicization",
+    "distance": 13,
+    "distance_plain": 13
+  },
+  {
+    "a": "Cafe",
+    "b": "Café",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "Café",
+    "b": "cafe",
+    "distance": 0,
+    "distance_plain": 2
+  },
+  {
+    "a": "Señor",
+    "b": "Senor",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "Naïve",
+    "b": "Naive",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "Straße",
+    "b": "Strasse",
+    "distance": 2,
+    "distance_plain": 2
+  },
+  {
+    "a": "ß",
+    "b": "ss",
+    "distance": 2,
+    "distance_plain": 2
+  },
+  {
+    "a": "Ångström",
+    "b": "Angstrom",
+    "distance": 0,
+    "distance_plain": 2
+  },
+  {
+    "a": "Æon",
+    "b": "Aeon",
+    "distance": 2,
+    "distance_plain": 2
+  },
+  {
+    "a": "Über",
+    "b": "Uber",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "Zoë",
+    "b": "Zoe",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "トリニティセブン",
+    "b": "トリニティセブン 七つの大罪",
+    "distance": 6,
+    "distance_plain": 6
+  },
+  {
+    "a": "トリニティセブン",
+    "b": "トリニティ セブン",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "進撃の巨人",
+    "b": "進撃の巨人 Season 2",
+    "distance": 9,
+    "distance_plain": 9
+  },
+  {
+    "a": "進撃の巨人",
+    "b": "進撃の巨人 2期",
+    "distance": 3,
+    "distance_plain": 3
+  },
+  {
+    "a": "進撃の巨人",
+    "b": "攻殻機動隊",
+    "distance": 5,
+    "distance_plain": 5
+  },
+  {
+    "a": "ヤマト",
+    "b": "ヤマト",
+    "distance": 0,
+    "distance_plain": 0
+  },
+  {
+    "a": "ヤマト",
+    "b": "やまと",
+    "distance": 0,
+    "distance_plain": 3
+  },
+  {
+    "a": "ＡＢＣ",
+    "b": "ABC",
+    "distance": 0,
+    "distance_plain": 3
+  },
+  {
+    "a": "Ｋａｎａ",
+    "b": "kana",
+    "distance": 0,
+    "distance_plain": 4
+  },
+  {
+    "a": "Dr. Stone",
+    "b": "Dr Stone",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "Dr. Stone",
+    "b": "Dr. Stone 2nd Season",
+    "distance": 11,
+    "distance_plain": 11
+  },
+  {
+    "a": "Mob Psycho 100",
+    "b": "Mob Psycho 100 III",
+    "distance": 4,
+    "distance_plain": 4
+  },
+  {
+    "a": "Mob Psycho 100",
+    "b": "Mob Psycho 100 II",
+    "distance": 3,
+    "distance_plain": 3
+  },
+  {
+    "a": "One Piece",
+    "b": "one piece",
+    "distance": 0,
+    "distance_plain": 2
+  },
+  {
+    "a": "ONE PIECE",
+    "b": "One Piece",
+    "distance": 0,
+    "distance_plain": 6
+  },
+  {
+    "a": "Fate/Zero",
+    "b": "Fate Zero",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "Re:Zero",
+    "b": "ReZero",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "K-On!",
+    "b": "K-ON!",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "Ghost in the Shell: SAC_2045",
+    "b": "Ghost in the Shell SAC 2045",
+    "distance": 2,
+    "distance_plain": 2
+  },
+  {
+    "a": "Hunter x Hunter (2011)",
+    "b": "Hunter x Hunter",
+    "distance": 7,
+    "distance_plain": 7
+  },
+  {
+    "a": "",
+    "b": "abc",
+    "distance": 3,
+    "distance_plain": 3
+  },
+  {
+    "a": "",
+    "b": "",
+    "distance": 0,
+    "distance_plain": 0
+  },
+  {
+    "a": "a",
+    "b": "A",
+    "distance": 0,
+    "distance_plain": 1
+  },
+  {
+    "a": "a",
+    "b": "b",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "abc",
+    "b": "xyz",
+    "distance": 3,
+    "distance_plain": 3
+  },
+  {
+    "a": "Trinity Seven",
+    "b": "trinity seven",
+    "distance": 0,
+    "distance_plain": 2
+  },
+  {
+    "a": "Trinity Seven: Nanatsu no Taizai",
+    "b": "Trinity Seven Nanatsu no Taizai",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "🎌 Festival",
+    "b": "Festival",
+    "distance": 3,
+    "distance_plain": 3
+  },
+  {
+    "a": "Kimi no Na wa.",
+    "b": "Kimi no Na wa",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "Sankarea",
+    "b": "Sankarea: Undying Love",
+    "distance": 14,
+    "distance_plain": 14
+  },
+  {
+    "a": "Yuru Camp△",
+    "b": "Yuru Camp",
+    "distance": 1,
+    "distance_plain": 1
+  },
+  {
+    "a": "Hyouka",
+    "b": "Hyouka",
+    "distance": 0,
+    "distance_plain": 0
+  },
+  {
+    "a": "Ｈｙｏｕｋａ",
+    "b": "Hyouka",
+    "distance": 0,
+    "distance_plain": 6
+  },
+  {
+    "a": "Ǽ",
+    "b": "AE",
+    "distance": 2,
+    "distance_plain": 2
+  }
+]
