@@ -14,13 +14,19 @@ pub(super) const NAME_MAX: usize = 255;
 /// How often a too long name is shortened before giving up.
 pub(super) const MAX_SHORTENINGS: u32 = 2;
 
-fn js_len(text: &str) -> usize {
+/// Length of `text` in UTF-16 code units, which is how the name limit is counted.
+///
+/// NOTE: the original tool counted in this unit (a JavaScript string length).
+/// Some file systems limit names in UTF-16 units (NTFS and SMB shares), others
+/// in bytes (ext4, ZFS, APFS), so for non-ASCII names this is an approximation
+/// of the byte limit, kept for parity with the original.
+fn utf16_len(text: &str) -> usize {
     text.encode_utf16().count()
 }
 
 /// Cut a name to `length` UTF-16 units, a cut name ends in `~`.
 pub(super) fn truncate_name(name: &str, length: usize) -> String {
-    if js_len(name) <= length {
+    if utf16_len(name) <= length {
         return name.to_owned();
     }
     let mut units = 0;
@@ -69,8 +75,8 @@ pub(super) fn shorten_names(
 
     // a name using over half of the file name is considered too long
     // NOTE: the kanji names are left alone, they are generally short already
-    let anime_length = js_len(&data.anime_name_romaji).max(js_len(&data.anime_name_english));
-    let episode_length = js_len(&data.episode_name).max(js_len(&data.episode_name_romaji));
+    let anime_length = utf16_len(&data.anime_name_romaji).max(utf16_len(&data.anime_name_english));
+    let episode_length = utf16_len(&data.episode_name).max(utf16_len(&data.episode_name_romaji));
     let mut anime_long = anime_length > NAME_MAX / 2;
     let mut episode_long = episode_length > NAME_MAX / 2;
     // neither stands out, blame the longest one
@@ -85,7 +91,7 @@ pub(super) fn shorten_names(
             .iter()
             .filter(|name| !name.is_empty())
             .collect();
-        shorts.sort_by_key(|name| js_len(name));
+        shorts.sort_by_key(|name| utf16_len(name));
         if let Some(short) = shorts.first() {
             result.anime_name_romaji.clone_from(short);
             result.anime_name_english.clone_from(short);

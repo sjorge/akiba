@@ -4,24 +4,36 @@ use std::fs::DirBuilder;
 use std::os::unix::fs::DirBuilderExt;
 use std::process::ExitCode;
 
-use akiba_core::args::number_arg;
 use akiba_core::config::{Config, ConfigLoadError};
 use akiba_core::idmap::LocalMap;
 use akiba_core::logger::{self, Level};
+use akiba_core::num::parse_i64;
 use clap::Args as ClapArgs;
+
+/// The id stored for `blacklist`.
+const BLACKLIST: i64 = -1;
+
+/// Value parser for the id options: a number, or exactly `blacklist` for -1.
+fn id_or_blacklist(value: &str) -> Result<i64, String> {
+    if value == "blacklist" {
+        return Ok(BLACKLIST);
+    }
+    parse_i64(value).ok_or_else(|| "Expecting a number or blacklist.".to_owned())
+}
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(ClapArgs)]
 pub struct Args {
     /// anidb id to manage mapping for
-    #[arg(value_name = "aid", value_parser = number_arg)]
+    #[arg(value_name = "aid", value_parser = akiba_core::args::number_arg)]
     aid: i64,
 
-    /// add maping to this anilist id
+    /// add maping to this anilist id, `blacklist` (or -1) records that this anime has no entry there, so it is not looked up again; `--no-anilistid` removes the mapping instead
     #[arg(
         long,
         value_name = "id",
-        value_parser = number_arg,
+        value_parser = id_or_blacklist,
+        allow_negative_numbers = true,
         overrides_with = "no_anilistid"
     )]
     anilistid: Option<i64>,
@@ -30,11 +42,12 @@ pub struct Args {
     #[arg(long, overrides_with = "anilistid")]
     no_anilistid: bool,
 
-    /// add maping to this themoviedb sereis id (movie ids are not supported)
+    /// add maping to this themoviedb sereis id (movie ids are not supported), `blacklist` (or -1) records that this anime has no entry there, so it is not looked up again; `--no-tmdbid` removes the mapping instead
     #[arg(
         long,
         value_name = "id",
-        value_parser = number_arg,
+        value_parser = id_or_blacklist,
+        allow_negative_numbers = true,
         overrides_with = "no_tmdbid"
     )]
     tmdbid: Option<i64>,
@@ -186,5 +199,56 @@ mod tests {
             ],
         );
         assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    }
+
+    fn stored(env: &Env) -> String {
+        fs::read_to_string(env.cache_dir().join("local.map.toml")).expect("mapping file")
+    }
+
+    #[test]
+    fn idmap_stores_minus_one_for_every_spelling_of_the_marker() {
+        for args in [
+            ["5", "--tmdbid", "-1"],
+            ["5", "--tmdbid=-1", "--no-show"],
+            ["5", "--tmdbid", "blacklist"],
+        ] {
+            let env = Env::new();
+            let out = idmap(&env, &args);
+            assert_eq!(out.code, 0, "{args:?}: {}{}", out.stdout, out.stderr);
+            assert!(
+                stored(&env).contains("tmdb = -1"),
+                "{args:?}: {}",
+                stored(&env)
+            );
+        }
+        for args in [
+            ["5", "--anilistid", "-1"],
+            ["5", "--anilistid=-1", "--no-show"],
+            ["5", "--anilistid", "blacklist"],
+        ] {
+            let env = Env::new();
+            let out = idmap(&env, &args);
+            assert_eq!(out.code, 0, "{args:?}: {}{}", out.stdout, out.stderr);
+            assert!(
+                stored(&env).contains("anilist = -1"),
+                "{args:?}: {}",
+                stored(&env)
+            );
+        }
+    }
+
+    #[test]
+    fn idmap_rejects_other_spellings_of_blacklist() {
+        for value in ["blacklisted", "Blacklist", "BLACKLIST", ""] {
+            for option in ["--tmdbid", "--anilistid"] {
+                let env = Env::new();
+                let out = idmap(&env, &["5", option, value]);
+                assert_ne!(out.code, 0, "{option} {value:?}");
+                assert!(
+                    !env.cache_dir().join("local.map.toml").exists(),
+                    "{option} {value:?}"
+                );
+            }
+        }
     }
 }

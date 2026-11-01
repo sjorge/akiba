@@ -91,8 +91,8 @@ akiba idmap 18700 --tmdbid 259140
 akiba idmap 18700 --no-tmdbid --no-show
 
 # Blacklist a potential incorrect mapping from the tmdb idmap provider
-# (the = is required: without it, clap reads -1 as an option)
-akiba idmap 18700 --tmdbid=-1
+# (-1 is an alias for blacklist, --anilistid works the same)
+akiba idmap 18700 --tmdbid blacklist
 
 # Show additional flags
 akiba idmap --help

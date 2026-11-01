@@ -24,12 +24,20 @@ enum Error {
 #[allow(clippy::struct_excessive_bools)]
 #[derive(ClapArgs)]
 pub struct Args {
-    /// your anidb http client (format: <name>/<version>)
-    #[arg(long, value_name = "http_client", value_parser = client_arg)]
+    #[arg(
+        long,
+        value_name = "http_client",
+        value_parser = client_arg,
+        help = "your anidb http client (format: <name>/<version>)"
+    )]
     anidb_http_client: Option<String>,
 
-    /// your anidb udp client (format: <name>/<version>, name: 4 to 16 lower case letters a-z)
-    #[arg(long, value_name = "udp_client", value_parser = udp_client_arg)]
+    #[arg(
+        long,
+        value_name = "udp_client",
+        value_parser = udp_client_arg,
+        help = "your anidb udp client (format: <name>/<version>, name: 4 to 16 lower case letters a-z)"
+    )]
     anidb_udp_client: Option<String>,
 
     /// your anidb username
@@ -107,7 +115,7 @@ pub struct Args {
     dump: bool,
 }
 
-/// Splits `<name>/<version>`. A missing version is 1. The version must be a whole
+/// Splits `name/version`. A missing version is 1. The version must be a whole
 /// number that fits the config's unsigned integer (`name/1x` is rejected).
 fn split_client(value: &str) -> Option<(String, u32)> {
     let mut parts = value.split('/');
