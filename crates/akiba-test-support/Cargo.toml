@@ -1,0 +1,17 @@
+[package]
+name = "akiba-test-support"
+description = "Test helpers shared by the akiba-cmd-* crates (dev-dependency only, not published)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+akiba-core = { path = "../akiba-core" }
+clap.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
