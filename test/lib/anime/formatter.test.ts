@@ -75,6 +75,20 @@ test("animeStringFormat sanitizes tag values but not the template", (): void => 
   );
 });
 
+test("animeStringFormat drops trailing dots before an extension", (): void => {
+  const data = sampleFormatData({ episode_name: "Cut My Losses..." });
+  expect(animeStringFormat("{episode_name}.mkv", data)).toBe(
+    "Cut My Losses.mkv",
+  );
+  expect(animeStringFormat("{episode_name} - x.mkv", data)).toBe(
+    "Cut My Losses... - x.mkv",
+  );
+  // only the extension, a dot in the middle of the template stays
+  expect(animeStringFormat("{episode_name}.{crc32}.mkv", data)).toBe(
+    "Cut My Losses....438a7b93.mkv",
+  );
+});
+
 test("animeStringFormat cleans up directory parts and path traversal", (): void => {
   const data = sampleFormatData({ anime_name_romaji: "Test Anime" });
 

@@ -93,9 +93,19 @@ export function animeStringFormat(
   // parse first, so unknown tags are reported before any rendering error
   const parts = parseTemplate(template);
   let rendered = "";
-  for (const part of parts) {
-    if (typeof part === "string") rendered += part;
-    else rendered += renderTag(part, data);
+  for (const [index, part] of parts.entries()) {
+    if (typeof part === "string") {
+      // a tag value ending in dots before the extension would give
+      // "name....ext", drop them
+      if (
+        index === parts.length - 1 &&
+        index > 0 &&
+        part.startsWith(".") &&
+        typeof parts[index - 1] !== "string"
+      )
+        rendered = rendered.replace(/\.+$/, "");
+      rendered += part;
+    } else rendered += renderTag(part, data);
   }
   return sanitizeDirComponents(rendered);
 }
