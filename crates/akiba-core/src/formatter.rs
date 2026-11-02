@@ -209,9 +209,21 @@ impl Template {
     /// to the result.
     pub fn render(&self, info: &FileInfo) -> Result<String, FormatError> {
         let mut out = String::new();
-        for part in &self.parts {
+        let last = self.parts.len().saturating_sub(1);
+        for (index, part) in self.parts.iter().enumerate() {
             match part {
-                Part::Literal(text) => out.push_str(text),
+                Part::Literal(text) => {
+                    // a tag value ending in dots before the extension would
+                    // give "name....ext", drop them
+                    if index == last
+                        && index > 0
+                        && text.starts_with('.')
+                        && matches!(self.parts[index - 1], Part::Tag(_))
+                    {
+                        out.truncate(out.trim_end_matches('.').len());
+                    }
+                    out.push_str(text);
+                }
                 Part::Tag(tag) => out.push_str(&tag.render(info)?),
             }
         }

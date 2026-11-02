@@ -34,6 +34,21 @@ fn name(value: &str) -> String {
 }
 
 #[test]
+fn drops_trailing_dots_before_an_extension() {
+    let info = sample_with(|info| info.episode_name = "Cut My Losses...".to_owned());
+    assert_eq!(format("{episode_name}.mkv", &info), "Cut My Losses.mkv");
+    assert_eq!(
+        format("{episode_name} - x.mkv", &info),
+        "Cut My Losses... - x.mkv"
+    );
+    // only the extension, a dot in the middle of the template stays
+    assert_eq!(
+        format("{episode_name}.{crc32}.mkv", &info),
+        "Cut My Losses....438a7b93.mkv"
+    );
+}
+
+#[test]
 fn tags_match_file_info_fields() {
     // serde_json maps are sorted, so compare as sorted lists
     let value = serde_json::to_value(FileInfo::default()).expect("serialises");
